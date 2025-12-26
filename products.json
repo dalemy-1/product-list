@@ -1,5 +1,18 @@
 [
   {
+    "market": "US",
+    "asin": "B0CZRD28S5",
+    "title": "美国超声波清洗机",
+    "keyword": "zima dental pod ultrasonic cleaner",
+    "store": "Woot",
+    "remark": "Pay attention to choosing the store \"woot\"",
+    "link": "https://amzn.to/49IYJIa",
+    "image_url": "https://m.media-amazon.com/images/I/71AnL6hywJL._SL1500_.jpg",
+    "price": "0.00",
+    "commission": "0.00",
+    "status": "active"
+  },
+  {
     "market": "UK",
     "asin": "B0G3PNYG2K",
     "title": "英国充电宝",
@@ -398,19 +411,6 @@
     "remark": "Need Text Review",
     "link": "https://amzn.to/4jbAR2u",
     "image_url": "https://m.media-amazon.com/images/I/71tU1uNf5mL._AC_SL1500_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "US",
-    "asin": "B0CZRD28S5",
-    "title": "美国超声波清洗机",
-    "keyword": "zima dental pod ultrasonic cleaner",
-    "store": "Woot",
-    "remark": "Pay attention to choosing the store \"woot\"",
-    "link": "https://amzn.to/49IYJIa",
-    "image_url": "https://m.media-amazon.com/images/I/71AnL6hywJL._SL1500_.jpg",
     "price": "0.00",
     "commission": "0.00",
     "status": "active"
