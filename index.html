@@ -367,26 +367,57 @@
       return lang + "||" + text;
     }
 
-    async function translateRemark(text, targetLang) {
-      const q = (text || "").trim();
-      if (!q) return "";
-      const key = cacheKey(targetLang, q);
-      if (translateCache[key]) return translateCache[key];
+    function detectSourceLang(text) {
+  // 只做“够用”的判断：包含中文字符 => zh，否则 => en
+  // MyMemory 支持 "zh" 但不建议用 "zh-CN"
+  return /[\u4e00-\u9fff]/.test(text) ? "zh" : "en";
+}
 
-      // MyMemory: auto|xx
-      const url = TRANSLATE_ENDPOINT + "?q=" + encodeURIComponent(q) + "&langpair=" + encodeURIComponent("auto|" + targetLang);
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error("translate http " + res.status);
-      const data = await res.json();
+function isBadTranslation(out) {
+  const s = (out || "").toString().trim().toUpperCase();
+  if (!s) return true;
+  // MyMemory 常见报错/提示
+  if (s.includes("INVALID SOURCE LANGUAGE")) return true;
+  if (s.includes("LANGPAIR")) return true;
+  if (s.includes("PLEASE USE 2 LETTER ISO")) return true;
+  if (s.startsWith("'AUTO'")) return true;
+  return false;
+}
 
-      const translated = (data && data.responseData && data.responseData.translatedText) ? String(data.responseData.translatedText) : "";
-      // 如果返回空，就回退原文
-      const out = translated.trim() ? translated.trim() : q;
+async function translateRemark(text, targetLang) {
+  const q = (text || "").trim();
+  if (!q) return "";
 
-      translateCache[key] = out;
-      saveCache();
-      return out;
-    }
+  const key = cacheKey(targetLang, q);
+  if (translateCache[key]) return translateCache[key];
+
+  const src = detectSourceLang(q);
+  // 目标语言统一用 2 位：en/de/fr/it/es/ja
+  const langpair = `${src}|${targetLang}`;
+
+  const url =
+    TRANSLATE_ENDPOINT +
+    "?q=" + encodeURIComponent(q) +
+    "&langpair=" + encodeURIComponent(langpair) +
+    "&de=" + encodeURIComponent(EMAIL_CONTACT); // 可选：放你的邮箱，提高稳定性
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("translate http " + res.status);
+
+  const data = await res.json();
+  const translated =
+    (data && data.responseData && data.responseData.translatedText)
+      ? String(data.responseData.translatedText).trim()
+      : "";
+
+  // 过滤错误输出，避免把报错显示到 Remark
+  const out = (!translated || isBadTranslation(translated)) ? q : translated;
+
+  translateCache[key] = out;
+  saveCache();
+  return out;
+}
+
 
     // 限速队列：避免瞬间请求过多
     let translateQueue = [];
@@ -722,3 +753,4 @@
   </script>
 </body>
 </html>
+
