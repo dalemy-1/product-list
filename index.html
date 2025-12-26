@@ -48,13 +48,24 @@
 
     .product-table-container{ width:100%; overflow-x:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
     .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:980px; }
+
+    /* ✅ 数据居中显示（表头+内容） */
     .product-table th,.product-table td{
-      padding:12px; text-align:left; border-bottom:1px solid #eee; vertical-align:top;
-      font-size:.9em; word-break:break-word;
+      padding:12px;
+      text-align:center;
+      border-bottom:1px solid #eee;
+      vertical-align:middle;
+      font-size:.9em;
+      word-break:break-word;
     }
     .product-table th{ background:#f4f4f4; position:sticky; top:0; z-index:1; }
 
-    /* ✅ 图片放大到原来约2倍 */
+    /* ✅ 图片放大到原来约2倍 + 居中 */
+    .img-cell{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
     .product-image{
       width:120px; height:120px; object-fit:contain; cursor:pointer; border-radius:10px;
       border:1px solid #e5e7eb; background:#fff;
@@ -73,7 +84,6 @@
     @media (max-width:768px){
       header h1{ font-size:1.5em; }
       .product-table th,.product-table td{ padding:8px; font-size:.8em; }
-      /* ✅ 移动端也放大 */
       .product-image{ width:96px; height:96px; }
       .product-title{ font-size:.9em; }
       .contact-text{ font-size:.95em; }
@@ -94,23 +104,8 @@
     }
     .close:hover{ opacity:.7; }
 
-    .empty{ padding:16px 12px; color:#6b7280; font-size:14px; }
+    .empty{ padding:16px 12px; color:#6b7280; font-size:14px; text-align:center; }
     .remark-loading{ font-size:12px; color:#6b7280; margin-top:4px; }
-
-    /* 小的灰色详情按钮（可选） */
-    .link-mini{
-      display:inline-flex;
-      margin-top:8px;
-      font-size:12px;
-      color:#374151;
-      text-decoration:none;
-      border:1px solid #e5e7eb;
-      background:#f9fafb;
-      padding:6px 10px;
-      border-radius:10px;
-      font-weight:700;
-    }
-    .link-mini:hover{ opacity:.9; }
   </style>
 </head>
 
@@ -190,11 +185,11 @@
 
       <h3 style="margin:0 0 10px 0;" id="forwardTitle">Forward Product</h3>
       <div style="font-size:13px;color:#6b7280;margin-bottom:8px;" id="forwardSub">
-        WhatsApp will open with the message pre-filled. You only need to press Send.
+        Choose a channel. A new window will open; this page will stay here.
       </div>
 
       <div id="forwardPreview"
-           style="border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.4;">
+           style="border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.4;text-align:left;">
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
@@ -213,7 +208,7 @@
     const TG_USERNAME = "dalemyrong";
     const EMAIL_CONTACT = "info@dalemy.top";
 
-    // ✅ 新增：产品详情中转页（同仓库同目录）
+    // ✅ 产品中转页
     const PRODUCT_PAGE_PATH = "/product-list/product.html";
 
     // ===== State =====
@@ -224,8 +219,8 @@
     // ===== Language mapping =====
     const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
 
-    // ===== i18n UI =====
-    const UI_I18N = {
+    // ===== i18n UI（保持你现有版本，下面只是兜底）=====
+    const UI_I18N = window.UI_I18N || {
       en: {
         pageTitle: "Product List",
         productsTitle: "Products",
@@ -236,83 +231,12 @@
         forwardSub: "Choose a channel. A new window will open; this page will stay here.",
         copy: "Copy Text",
         th: { action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword", store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission" },
-        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" },
-        view: "View"
-      },
-      de: {
-        pageTitle: "Produktliste",
-        productsTitle: "Produkte",
-        contactText: "Bei Fragen kontaktieren Sie uns über WhatsApp, Telegram oder E-Mail:",
-        refresh: "Aktualisieren",
-        translatingHint: "Remark wird automatisch übersetzt (nur Chinesisch). Bei Fehler bleibt der Originaltext.",
-        forwardTitle: "Produkt weiterleiten",
-        forwardSub: "Kanal wählen. Ein neues Fenster öffnet sich; diese Seite bleibt geöffnet.",
-        copy: "Text kopieren",
-        th: { action:"Aktion", market:"Markt", image:"Bild", title:"Titel", keyword:"Keyword", store:"Shop", remark:"Hinweis", price:"Rabattpreis", commission:"Provision" },
-        labels: { market:"Markt", price:"Rabattpreis", commission:"Provision", asin:"ASIN", link:"Link", remark:"Hinweis" },
-        view: "Ansehen"
-      },
-      fr: {
-        pageTitle: "Liste de produits",
-        productsTitle: "Produits",
-        contactText: "Pour toute question, contactez-nous via WhatsApp, Telegram ou e-mail :",
-        refresh: "Actualiser",
-        translatingHint: "Remark est traduit automatiquement (chinois uniquement). En cas d’échec, l’original s’affiche.",
-        forwardTitle: "Transférer le produit",
-        forwardSub: "Choisissez un canal. Une nouvelle fenêtre s’ouvrira ; cette page restera ouverte.",
-        copy: "Copier le texte",
-        th: { action:"Action", market:"Marché", image:"Image", title:"Titre", keyword:"Mot-clé", store:"Boutique", remark:"Remarque", price:"Prix remisé", commission:"Commission" },
-        labels: { market:"Marché", price:"Prix remisé", commission:"Commission", asin:"ASIN", link:"Lien", remark:"Remarque" },
-        view: "Voir"
-      },
-      it: {
-        pageTitle: "Elenco prodotti",
-        productsTitle: "Prodotti",
-        contactText: "Per informazioni, contattaci tramite WhatsApp, Telegram o Email:",
-        refresh: "Aggiorna",
-        translatingHint: "Remark tradotto automaticamente (solo cinese). Se fallisce, mostra l’originale.",
-        forwardTitle: "Inoltra prodotto",
-        forwardSub: "Scegli un canale. Si aprirà una nuova finestra; questa pagina resterà aperta.",
-        copy: "Copia testo",
-        th: { action:"Azione", market:"Mercato", image:"Immagine", title:"Titolo", keyword:"Keyword", store:"Negozio", remark:"Nota", price:"Prezzo scontato", commission:"Commissione" },
-        labels: { market:"Mercato", price:"Prezzo scontato", commission:"Commissione", asin:"ASIN", link:"Link", remark:"Nota" },
-        view: "Vedi"
-      },
-      es: {
-        pageTitle: "Lista de productos",
-        productsTitle: "Productos",
-        contactText: "Para consultas, contáctanos por WhatsApp, Telegram o Email:",
-        refresh: "Actualizar",
-        translatingHint: "Remark se traduce automáticamente (solo chino). Si falla, se mostrará el original.",
-        forwardTitle: "Reenviar producto",
-        forwardSub: "Elige un canal. Se abrirá una nueva ventana; esta página se mantendrá.",
-        copy: "Copiar texto",
-        th: { action:"Acción", market:"Mercado", image:"Imagen", title:"Título", keyword:"Keyword", store:"Tienda", remark:"Nota", price:"Precio con descuento", commission:"Comisión" },
-        labels: { market:"Mercado", price:"Precio con descuento", commission:"Comisión", asin:"ASIN", link:"Enlace", remark:"Nota" },
-        view: "Ver"
-      },
-      ja: {
-        pageTitle: "商品リスト",
-        productsTitle: "商品",
-        contactText: "お問い合わせは WhatsApp / Telegram / Email からご連絡ください：",
-        refresh: "更新",
-        translatingHint: "Remark は自動翻訳（中国語のみ）。失敗した場合は原文を表示します。",
-        forwardTitle: "商品を転送",
-        forwardSub: "連絡手段を選択すると新しいウィンドウで開きます（このページは残ります）。",
-        copy: "コピー",
-        th: { action:"操作", market:"マーケット", image:"画像", title:"商品名", keyword:"キーワード", store:"店舗", remark:"備考", price:"割引価格", commission:"コミッション" },
-        labels: { market:"マーケット", price:"割引価格", commission:"コミッション", asin:"ASIN", link:"リンク", remark:"備考" },
-        view: "表示"
+        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" }
       }
     };
 
-    // ===== Notice i18n（保留你之前版本）=====
-    const NOTICE_I18N = window.NOTICE_I18N || {}; // 若你之前已注入，这里不覆盖（兼容）
-    // 若你当前 index.html 内已有 NOTICE_I18N，可删掉上面两行并保留你原来的 NOTICE_I18N 代码块
-
     // ===== Currency formatting =====
     const MARKET_CURRENCY = { US:"USD", UK:"GBP", DE:"EUR", FR:"EUR", IT:"EUR", ES:"EUR", CA:"CAD", JP:"JPY" };
-
     function formatMoneyByMarket(value, market) {
       const currency = MARKET_CURRENCY[market] || "USD";
       const raw = String(value ?? "").trim();
@@ -322,12 +246,7 @@
 
       const isJPY = currency === "JPY";
       const isInt = Math.abs(num - Math.round(num)) < 1e-9;
-      const opts = {
-        style:"currency",
-        currency,
-        minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2),
-        maximumFractionDigits: isJPY ? 0 : 2
-      };
+      const opts = { style:"currency", currency, minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2), maximumFractionDigits: isJPY ? 0 : 2 };
       return new Intl.NumberFormat("en", opts).format(num);
     }
 
@@ -371,23 +290,20 @@
       document.getElementById("thPrice").textContent = T.th.price;
       document.getElementById("thCommission").textContent = T.th.commission;
 
-      // 注意事项渲染（如果你原来有 renderNotice，就继续用你的；这里做兼容）
       if (typeof renderNotice === "function") renderNotice();
     }
 
-    // ===== Notice toggle（如你已有，可忽略）=====
+    // ===== Notice toggle（若你已有，可直接保留你原版）=====
     function toggleNotice() {
       const contentEl = document.getElementById("noticeContent");
       const isHidden = contentEl.style.display === "none";
       contentEl.style.display = isHidden ? "block" : "none";
       localStorage.setItem("notice_hidden", isHidden ? "0" : "1");
-
-      // 按钮文字由你的 renderNotice 控制；这里简单处理
       document.getElementById("noticeToggleBtn").textContent = isHidden ? "Hide" : "Show";
       if (typeof renderNotice === "function") renderNotice();
     }
 
-    // ===== Translation（保留你现有逻辑：这里放最小兜底，避免你删错报错）=====
+    // ===== Translation（保持你现有逻辑，这里仅兜底）=====
     const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
     const translateCache = loadCache();
 
@@ -398,9 +314,7 @@
     function saveCache() {
       try { localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(translateCache)); } catch {}
     }
-    function cacheKey(lang, text) {
-      return lang + "||" + text;
-    }
+    function cacheKey(lang, text) { return lang + "||" + text; }
     function hasChinese(text) { return /[\u4e00-\u9fff]/.test(text || ""); }
     function isBadTranslation(out) {
       const sRaw = (out || "").toString().trim();
@@ -419,13 +333,11 @@
     function purgeBadCacheEntries() {
       let changed = false;
       for (const k of Object.keys(translateCache)) {
-        if (isBadTranslation(translateCache[k])) {
-          delete translateCache[k];
-          changed = true;
-        }
+        if (isBadTranslation(translateCache[k])) { delete translateCache[k]; changed = true; }
       }
       if (changed) saveCache();
     }
+
     const LIBRE_INSTANCES = [
       "https://libretranslate.de/translate",
       "https://translate.terraprint.co/translate",
@@ -517,11 +429,25 @@
 
         enqueueTranslate(async () => {
           const out = await translateRemark(orig, lang);
-          remarkEl.textContent = out || orig; // 失败则原文
+          remarkEl.textContent = out || orig;
           remarkEl.title = orig;
           if (loadingEl) loadingEl.textContent = "";
         });
       });
+    }
+
+    // ✅ 新增：打开产品中转页（新窗口）
+    function openProductPage(product) {
+      const market = (product.market || "").trim().toUpperCase();
+      const asin = (product.asin || "").trim();
+      const link = (product.link || "").trim();
+
+      const url = PRODUCT_PAGE_PATH
+        + "?market=" + encodeURIComponent(market || "")
+        + "&asin=" + encodeURIComponent(asin || "")
+        + "&link=" + encodeURIComponent(link || "");
+
+      window.open(url, "_blank", "noopener");
     }
 
     // ===== Fetch JSON =====
@@ -556,27 +482,10 @@
         });
     }
 
-    // ✅ 新增：打开产品中转页（新窗口）
-    function openProductPage(product) {
-      const market = (product.market || "").trim().toUpperCase();
-      const asin = (product.asin || "").trim();
-      const link = (product.link || "").trim();
-
-      // 传给中转页：asin/market/link（link 也带上，方便无需重新查找）
-      const url = PRODUCT_PAGE_PATH
-        + "?market=" + encodeURIComponent(market || "")
-        + "&asin=" + encodeURIComponent(asin || "")
-        + "&link=" + encodeURIComponent(link || "");
-
-      window.open(url, "_blank", "noopener");
-    }
-
     // ===== Render =====
     function displayProducts(products) {
       const tbody = document.getElementById("product-table-body");
       tbody.innerHTML = "";
-
-      const T = tUI();
 
       products.forEach(product => {
         const row = document.createElement("tr");
@@ -593,19 +502,17 @@
         const priceFormatted = formatMoneyByMarket(product.price, market);
         const commissionFormatted = formatMoneyByMarket(product.commission, market);
 
-        // ✅ 图片点击：打开产品中转页（新窗口）；去掉Open按钮
         row.innerHTML = `
           <td>
             <button class="btn" onclick='openForwardModal(${encodeProductForOnclick(product)})'>Forward</button>
           </td>
           <td>${escapeHtml(market)}</td>
           <td>
-            ${img ? `
-              <img src="${escapeAttr(img)}" alt="${safeTitle}" class="product-image"
-                   onclick='openProductPage(${encodeProductForOnclick(product)})' />
-            ` : ""}
-            <div>
-              <a class="link-mini" href="javascript:void(0)" onclick='openProductPage(${encodeProductForOnclick(product)})'>${escapeHtml(T.view || "View")}</a>
+            <div class="img-cell">
+              ${img ? `
+                <img src="${escapeAttr(img)}" alt="${safeTitle}" class="product-image"
+                     onclick='openProductPage(${encodeProductForOnclick(product)})' />
+              ` : ""}
             </div>
           </td>
           <td class="product-title">${safeTitle}</td>
@@ -713,25 +620,22 @@
       const text = buildForwardTextLocalized(product, T.labels, market, remarkDisplay);
       document.getElementById("forwardPreview").textContent = text;
 
-      // ✅ WhatsApp：新窗口打开
+      // WhatsApp：新窗口打开
       const waUrl = "https://wa.me/" + WA_PHONE + "?text=" + encodeURIComponent(text);
       const waBtn = document.getElementById("forwardWA");
       waBtn.href = waUrl;
-      waBtn.onclick = (e) => {
-        e.preventDefault();
-        window.open(waUrl, "_blank", "noopener");
-      };
+      waBtn.onclick = (e) => { e.preventDefault(); window.open(waUrl, "_blank", "noopener"); };
 
-      // ✅ Telegram：新窗口打开（先复制，再打开）
-      const tgBtn = document.getElementById("forwardTG");
+      // Telegram：新窗口打开（先复制再打开）
       const tgUrl = "https://t.me/" + TG_USERNAME;
+      const tgBtn = document.getElementById("forwardTG");
       tgBtn.href = tgUrl;
       tgBtn.onclick = (e) => {
         e.preventDefault();
         copyText(text).finally(() => window.open(tgUrl, "_blank", "noopener"));
       };
 
-      // ✅ Email：新窗口打开
+      // Email：新窗口打开
       const subject = `[${market}] ${product.title || "Product"}`.trim();
       const mailUrl =
         "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
@@ -740,10 +644,7 @@
 
       const mailBtn = document.getElementById("forwardMail");
       mailBtn.href = mailUrl;
-      mailBtn.onclick = (e) => {
-        e.preventDefault();
-        window.open(mailUrl, "_blank", "noopener");
-      };
+      mailBtn.onclick = (e) => { e.preventDefault(); window.open(mailUrl, "_blank", "noopener"); };
 
       document.getElementById("forwardTitle").textContent = T.forwardTitle;
       document.getElementById("forwardSub").textContent = T.forwardSub;
@@ -805,7 +706,8 @@
       applyI18n();
       fetchProductData(false);
 
-      setInterval(() => fetchProductData(false), 15 * 60 * 1000);
+      // ✅ 自动更新改成 10 分钟一次
+      setInterval(() => fetchProductData(false), 10 * 60 * 1000);
     };
   </script>
 </body>
