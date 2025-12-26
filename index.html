@@ -33,6 +33,14 @@
     .muted{ color:#6b7280; font-size:12px; }
     .hint-sub{ font-size:12px; color:#6b7280; margin-left:8px; }
 
+    /* Status filter */
+    .filter-wrap{ display:flex; align-items:center; gap:8px; }
+    .filter-label{ font-size:12px; color:#374151; font-weight:700; }
+    .filter-select{
+      font-size:12px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:10px; outline:none;
+      background:#fff; color:#111827;
+    }
+
     /* Notice box */
     .notice-box{
       background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:10px 0;
@@ -50,7 +58,7 @@
     .product-table-container{ width:100%; overflow-x:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
     .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:1040px; }
 
-    /* 居中显示（表头+内容） */
+    /* centered */
     .product-table th,.product-table td{
       padding:12px;
       text-align:center;
@@ -67,10 +75,17 @@
 
     .col-price, .col-commission{ min-width:120px; }
 
-    .sortable{ cursor:pointer; user-select:none; }
-    .sort-ind{ display:inline-block; margin-left:6px; font-size:12px; color:#6b7280; }
+    .sortable{
+      cursor:pointer;
+      user-select:none;
+    }
+    .sort-ind{
+      display:inline-block;
+      margin-left:6px;
+      font-size:12px;
+      color:#6b7280;
+    }
 
-    /* 图片放大 + 居中 */
     .img-cell{ display:flex; justify-content:center; align-items:center; }
     .product-image{
       width:120px; height:120px; object-fit:contain; cursor:pointer; border-radius:10px;
@@ -86,22 +101,6 @@
       background:#111827; color:#fff; cursor:pointer; font-weight:600; font-size:13px; white-space:nowrap;
     }
     .btn:hover{ opacity:.92; }
-
-    /* ✅ 状态筛选下拉 */
-    .status-filter{
-      padding:6px 10px;
-      border-radius:8px;
-      border:1px solid #ddd;
-      background:#fff;
-      font-size:12px;
-      color:#111827;
-    }
-    .status-label{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      padding-left:6px;
-    }
 
     @media (max-width:768px){
       header h1{ font-size:1.5em; }
@@ -167,18 +166,17 @@
         <span class="muted" id="statusMeta"></span>
         <span class="hint-sub" id="translateHint"></span>
 
-        <!-- ✅ 新增：Status 筛选 -->
-        <span class="status-label">
-          <span class="muted">Status</span>
-          <select class="status-filter" id="statusFilter" onchange="onStatusChange()">
-            <option value="ALL">All</option>
+        <!-- ✅ Status filter -->
+        <div class="filter-wrap" style="margin-left:8px;">
+          <span class="filter-label" id="statusFilterLabel">Status</span>
+          <select class="filter-select" id="statusSelect" onchange="onStatusChange()">
+            <option value="__all__">All</option>
           </select>
-        </span>
+        </div>
       </div>
       <button class="btn" onclick="fetchProductData(true)" id="refreshBtn">Refresh</button>
     </div>
 
-    <!-- Notice -->
     <div class="notice-box" id="noticeBox">
       <div class="notice-head">
         <div class="notice-title" id="noticeTitle">Important Notice</div>
@@ -198,6 +196,7 @@
             <th id="thKeyword">Keyword</th>
             <th id="thStore">Store</th>
             <th id="thRemark">Remark</th>
+
             <th id="thPrice" class="col-price sortable" onclick="toggleSort('price')">
               Discount Price <span class="sort-ind" id="indPrice"></span>
             </th>
@@ -214,7 +213,6 @@
     </div>
   </section>
 
-  <!-- Forward Modal -->
   <div id="forwardModal" class="modal" onclick="closeForwardModal(event)">
     <div class="modal-inner" onclick="event.stopPropagation()">
       <span class="close" onclick="closeForwardModal(event)">&times;</span>
@@ -239,27 +237,29 @@
 
   <script>
     // ===== Config =====
-    const PRODUCTS_JSON_PATH = "/product-list/products.json";
+    // ✅ 关键修复：用相对路径，兼容 ama.omino.top 和 dalemy-1.github.io/product-list/
+    const PRODUCTS_JSON_PATH = "./products.json";
+    const PRODUCT_PAGE_PATH  = "./product.html";
+
     const WA_PHONE = "8615778673666";
     const TG_USERNAME = "dalemyrong";
     const EMAIL_CONTACT = "info@dalemy.top";
-    const PRODUCT_PAGE_PATH = "/product-list/product.html";
+
+    // ✅ 60 秒检查更新（你指定默认 60 秒）
+    const AUTO_REFRESH_MS = 60 * 1000;
 
     // ===== State =====
-    let ALL_PRODUCTS = [];          // 原始顺序（默认顺序）
+    let ALL_PRODUCTS = [];
     let LAST_LOADED_AT = null;
     let CURRENT_FORWARD_PRODUCT = null;
 
-    // ✅ 排序状态：null=默认；'price'/'commission'=按该列从大到小
-    let SORT_KEY = null;
-
-    // ✅ 状态筛选：默认 ALL
-    let CURRENT_STATUS = "ALL";
+    let SORT_KEY = null; // null | 'price' | 'commission'
+    let STATUS_FILTER = "__all__"; // "__all__" or actual status string
 
     // ===== Language mapping =====
     const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
 
-    // ===== i18n UI（兜底）=====
+    // ===== i18n UI =====
     const UI_I18N = window.UI_I18N || {
       en: {
         pageTitle: "Product List",
@@ -270,15 +270,17 @@
         forwardTitle: "Forward Product",
         forwardSub: "Choose a channel. A new window will open; this page will stay here.",
         copy: "Copy Text",
+        statusLabel: "Status",
         th: { action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword", store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission" },
         labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" },
         noticeTitle: "Important Notice",
         noticeHide: "Hide",
-        noticeShow: "Show"
+        noticeShow: "Show",
+        all: "All"
       }
     };
 
-    // ✅ Notice 多语言模板（你要求的注意事项）
+    // ===== Notice i18n (keep your content) =====
     const NOTICE_I18N = {
       en: {
         title: "Important Notice",
@@ -300,106 +302,6 @@
             <li><b>Commission</b>: extra commission paid after the review/requirements are completed.</li>
           </ul>
         `
-      },
-      de: {
-        title: "Wichtiger Hinweis",
-        html: `
-          <div class="notice-muted">
-            Ablauf: Produkt wählen → mich kontaktieren → Verfügbarkeit bestätigen → nach Keyword suchen & bestellen →
-            Produkt/Shop prüfen → Bestell-Screenshot senden + PayPal angeben → nach Erhalt wie gefordert bewerten →
-            Screenshot senden → Rückzahlung ca. 3–7 Tage.
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: Bitte Review abgeben und Screenshot senden, sobald es bei Amazon sichtbar ist.</li>
-            <li><b>No Review</b>: Nach Erhalt bitte nur Produktfotos senden.</li>
-            <li><b>Need Feedback</b>: 5-Sterne Shop-Feedback (ohne Text), Screenshot senden.</li>
-            <li><b>Need Rating</b>: 5-Sterne Produktbewertung (ohne Text), Screenshot senden.</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b>: 0 = volle Erstattung. Betrag = Eigenanteil (wird von Rückzahlung abgezogen).</li>
-            <li><b>Commission</b>: Extra-Provision nach Abschluss der Anforderungen.</li>
-          </ul>
-        `
-      },
-      fr: {
-        title: "Avis important",
-        html: `
-          <div class="notice-muted">
-            Procédure: choisir un produit → me contacter → confirmation → rechercher via le mot-clé et commander →
-            vérifier produit et boutique → envoyer capture de commande + PayPal → après réception, faire l’action demandée →
-            envoyer capture → remboursement env. 3–7 jours.
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b> : soumettre l’avis et m’envoyer la capture une fois affiché sur Amazon.</li>
-            <li><b>No Review</b> : après réception, envoyez simplement des photos du produit.</li>
-            <li><b>Need Feedback</b> : laisser un feedback boutique 5 étoiles (sans texte), envoyer capture.</li>
-            <li><b>Need Rating</b> : noter le produit 5 étoiles (sans texte), envoyer capture.</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b> : 0 = remboursement intégral. Montant = part à payer (déduite du remboursement).</li>
-            <li><b>Commission</b> : commission supplémentaire après validation.</li>
-          </ul>
-        `
-      },
-      it: {
-        title: "Avviso importante",
-        html: `
-          <div class="notice-muted">
-            Procedura: scegli prodotto → contattami → conferma → cerca per keyword e ordina →
-            verifica prodotto e negozio → invia screenshot ordine + PayPal → dopo la consegna, esegui quanto richiesto →
-            invia screenshot → rimborso ~3–7 giorni.
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: invia la recensione e mandami lo screenshot quando appare su Amazon.</li>
-            <li><b>No Review</b>: dopo la consegna, invia solo foto del prodotto.</li>
-            <li><b>Need Feedback</b>: feedback negozio 5 stelle (senza testo), invia screenshot.</li>
-            <li><b>Need Rating</b>: valutazione prodotto 5 stelle (senza testo), invia screenshot.</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b>: 0 = rimborso totale. Importo = costo a tuo carico (dedotto dal rimborso).</li>
-            <li><b>Commission</b>: commissione extra dopo il completamento.</li>
-          </ul>
-        `
-      },
-      es: {
-        title: "Aviso importante",
-        html: `
-          <div class="notice-muted">
-            Flujo: elegir producto → contactarme → confirmo disponibilidad → buscar por keyword y comprar →
-            verificar producto y tienda → enviar captura del pedido + PayPal → tras recibir, completar lo requerido →
-            enviar captura → reembolso ~3–7 días.
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: envía la reseña y la captura cuando Amazon la muestre.</li>
-            <li><b>No Review</b>: al recibir, envía fotos del producto.</li>
-            <li><b>Need Feedback</b>: feedback 5 estrellas a la tienda (sin texto), enviar captura.</li>
-            <li><b>Need Rating</b>: valoración 5 estrellas al producto (sin texto), enviar captura.</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b>: 0 = reembolso total. Monto = gasto propio (se descuenta del reembolso).</li>
-            <li><b>Commission</b>: comisión extra tras completar.</li>
-          </ul>
-        `
-      },
-      ja: {
-        title: "重要なお知らせ",
-        html: `
-          <div class="notice-muted">
-            手順：商品を選ぶ → 私に連絡 → 可否を確認 → キーワードで検索して注文 →
-            商品/店舗名を確認 → 注文スクショ＋PayPalを送る → 受取後、指示どおり対応 →
-            スクショ送付 → 返金は通常3〜7日。
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b>：レビュー投稿後、Amazonに表示されたスクショを送ってください。</li>
-            <li><b>No Review</b>：受取後、商品の写真だけ送ってください。</li>
-            <li><b>Need Feedback</b>：店舗へ★5フィードバック（文章不要）、スクショ送付。</li>
-            <li><b>Need Rating</b>：商品へ★5評価（文章不要）、スクショ送付。</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b>：0は全額返金。金額がある場合は自己負担（返金時に差し引き）。</li>
-            <li><b>Commission</b>：条件達成後に追加で支払われる報酬。</li>
-          </ul>
-        `
       }
     };
 
@@ -411,13 +313,12 @@
       if (raw === "" || raw === null || raw === undefined) return "";
       const num = Number(raw.replace(/[^\d.-]/g, ""));
       if (!Number.isFinite(num)) return raw;
+
       const isJPY = currency === "JPY";
       const isInt = Math.abs(num - Math.round(num)) < 1e-9;
       const opts = { style:"currency", currency, minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2), maximumFractionDigits: isJPY ? 0 : 2 };
       return new Intl.NumberFormat("en", opts).format(num);
     }
-
-    // 用于排序
     function toNumberMoney(v) {
       const raw = String(v ?? "").trim();
       if (!raw) return -Infinity;
@@ -443,7 +344,7 @@
       return UI_I18N[currentLang()] || UI_I18N.en;
     }
 
-    // ===== Notice render =====
+    // ===== Notice =====
     function renderNotice() {
       const lang = currentLang();
       const T = tUI();
@@ -458,7 +359,7 @@
         ? (T.noticeShow || "Show")
         : (T.noticeHide || "Hide");
 
-      contentEl.innerHTML = N.html || NOTICE_I18N.en.html;
+      contentEl.innerHTML = (N.html || NOTICE_I18N.en.html);
     }
     function toggleNotice() {
       const isHidden = localStorage.getItem("notice_hidden") === "1";
@@ -466,7 +367,7 @@
       renderNotice();
     }
 
-    // ===== Translation（Remark only, Chinese only）=====
+    // ===== Translation (as-is) =====
     const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
     const translateCache = loadCache();
     function loadCache() { try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); } catch { return {}; } }
@@ -581,18 +482,61 @@
       });
     }
 
-    // ✅ 新窗口打开产品中转页
+    // ===== Product Page =====
     function openProductPage(product) {
       const market = (product.market || "").trim().toUpperCase();
       const asin = (product.asin || "").trim();
       const link = (product.link || "").trim();
-
       const url = PRODUCT_PAGE_PATH
         + "?market=" + encodeURIComponent(market || "")
         + "&asin=" + encodeURIComponent(asin || "")
         + "&link=" + encodeURIComponent(link || "");
-
       window.open(url, "_blank", "noopener");
+    }
+
+    // ===== Status filter =====
+    function normalizeStatus(s) {
+      const v = String(s ?? "").trim();
+      return v ? v : "__empty__";
+    }
+    function buildStatusOptions(products) {
+      const select = document.getElementById("statusSelect");
+      const T = tUI();
+
+      const set = new Set();
+      for (const p of products) set.add(normalizeStatus(p.status));
+
+      const statuses = Array.from(set)
+        .filter(v => v !== "__empty__")
+        .sort((a,b) => a.localeCompare(b));
+
+      const keep = STATUS_FILTER || "__all__";
+      select.innerHTML = "";
+
+      const optAll = document.createElement("option");
+      optAll.value = "__all__";
+      optAll.textContent = (T.all || "All");
+      select.appendChild(optAll);
+
+      for (const s of statuses) {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        select.appendChild(opt);
+      }
+
+      // restore selection if exists
+      const canUseKeep = (keep === "__all__") || statuses.includes(keep);
+      select.value = canUseKeep ? keep : "__all__";
+      STATUS_FILTER = select.value;
+      localStorage.setItem("status_filter", STATUS_FILTER);
+    }
+    function onStatusChange() {
+      const v = document.getElementById("statusSelect").value || "__all__";
+      STATUS_FILTER = v;
+      localStorage.setItem("status_filter", STATUS_FILTER);
+      renderTable();
+      translateVisibleRemarks();
     }
 
     // ===== i18n apply =====
@@ -603,6 +547,7 @@
       document.getElementById("contactText").textContent = T.contactText;
       document.getElementById("refreshBtn").textContent = T.refresh;
       document.getElementById("translateHint").textContent = T.translatingHint;
+      document.getElementById("statusFilterLabel").textContent = (T.statusLabel || "Status");
 
       document.getElementById("forwardTitle").textContent = T.forwardTitle;
       document.getElementById("forwardSub").textContent = T.forwardSub;
@@ -620,45 +565,9 @@
       refreshSortIndicators();
     }
 
-    // ===== Status filter =====
-    function initStatusFilter(products) {
-      const sel = document.getElementById("statusFilter");
-      if (!sel) return;
-
-      const statuses = Array.from(new Set(
-        products.map(p => String(p.status || "").trim()).filter(Boolean)
-      ));
-
-      sel.innerHTML = `<option value="ALL">All</option>`;
-      statuses.forEach(s => {
-        const opt = document.createElement("option");
-        opt.value = s;
-        opt.textContent = s;
-        sel.appendChild(opt);
-      });
-
-      // 保留之前选择
-      const saved = localStorage.getItem("selectedStatus") || "ALL";
-      if ([...sel.options].some(o => o.value === saved)) {
-        sel.value = saved;
-        CURRENT_STATUS = saved;
-      } else {
-        sel.value = "ALL";
-        CURRENT_STATUS = "ALL";
-      }
-    }
-
-    function onStatusChange() {
-      const sel = document.getElementById("statusFilter");
-      CURRENT_STATUS = (sel && sel.value) ? sel.value : "ALL";
-      localStorage.setItem("selectedStatus", CURRENT_STATUS);
-
-      renderTable();
-      translateVisibleRemarks();
-    }
-
     // ===== Fetch JSON =====
     function fetchProductData(manual = false) {
+      // cache bust
       const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
       setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
 
@@ -673,8 +582,8 @@
           ALL_PRODUCTS = products.map((p, idx) => ({ ...p, __idx: idx }));
           LAST_LOADED_AT = new Date();
 
-          // ✅ 初始化状态筛选选项
-          initStatusFilter(ALL_PRODUCTS);
+          // ✅ rebuild status filter options based on latest data
+          buildStatusOptions(ALL_PRODUCTS);
 
           renderTable();
           applyI18n();
@@ -700,23 +609,20 @@
       refreshSortIndicators();
       translateVisibleRemarks();
     }
-
     function refreshSortIndicators() {
-      const indPrice = document.getElementById("indPrice");
-      const indCommission = document.getElementById("indCommission");
-      indPrice.textContent = (SORT_KEY === "price") ? "▼" : "";
-      indCommission.textContent = (SORT_KEY === "commission") ? "▼" : "";
+      document.getElementById("indPrice").textContent = (SORT_KEY === "price") ? "▼" : "";
+      document.getElementById("indCommission").textContent = (SORT_KEY === "commission") ? "▼" : "";
     }
 
-    // ===== Render table with filter + sort =====
+    // ===== Render table with market + status filter + sort =====
     function getVisibleProducts() {
       const m = currentMarket();
+      let list = ALL_PRODUCTS.filter(p => String(p.market || "").trim().toUpperCase() === m);
 
-      let list = ALL_PRODUCTS.filter(p => {
-        const okMarket = String(p.market || "").trim().toUpperCase() === m;
-        const okStatus = (CURRENT_STATUS === "ALL") || (String(p.status || "").trim() === CURRENT_STATUS);
-        return okMarket && okStatus;
-      });
+      // ✅ status filter
+      if (STATUS_FILTER && STATUS_FILTER !== "__all__") {
+        list = list.filter(p => normalizeStatus(p.status) === STATUS_FILTER);
+      }
 
       if (SORT_KEY === "price") {
         list = [...list].sort((a, b) => toNumberMoney(b.price) - toNumberMoney(a.price));
@@ -928,39 +834,6 @@
     }
     function escapeAttr(str) { return escapeHtml(str); }
 
-    // ===== Auto check update every 60s (HEAD only) =====
-    let LAST_ETAG = null;
-    let LAST_MODIFIED = null;
-
-    async function checkAndRefreshProducts() {
-      try {
-        const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
-        const res = await fetch(url, {
-          method: "HEAD",
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" }
-        });
-        if (!res.ok) return;
-
-        const etag = res.headers.get("etag");
-        const lm = res.headers.get("last-modified");
-
-        const changed =
-          (etag && etag !== LAST_ETAG) ||
-          (lm && lm !== LAST_MODIFIED) ||
-          (!etag && !lm);
-
-        if (!changed) return;
-
-        LAST_ETAG = etag || LAST_ETAG;
-        LAST_MODIFIED = lm || LAST_MODIFIED;
-
-        fetchProductData(false);
-      } catch (e) {
-        console.warn("Auto check failed:", e);
-      }
-    }
-
     // ===== Init =====
     window.onload = function () {
       purgeBadCacheEntries();
@@ -968,11 +841,14 @@
       const savedCountry = localStorage.getItem("selectedCountry");
       document.getElementById("countrySelect").value = savedCountry || "UK";
 
+      const savedStatus = localStorage.getItem("status_filter");
+      STATUS_FILTER = savedStatus || "__all__";
+
       applyI18n();
       fetchProductData(false);
 
-      // ✅ 默认 60 秒检查 products.json 是否更新（有变化才刷新）
-      setInterval(checkAndRefreshProducts, 60 * 1000);
+      // ✅ 60秒自动刷新 products.json（无需手动刷新页面）
+      setInterval(() => fetchProductData(false), AUTO_REFRESH_MS);
     };
   </script>
 </body>
