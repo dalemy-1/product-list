@@ -1,5 +1,18 @@
 [
   {
+    "market": "US",
+    "asin": "B0DPN3J57K",
+    "title": "美国脱发治疗",
+    "keyword": "hair regrowth for men",
+    "store": "Amazon.com",
+    "remark": "Sold by Amazon.com\nuse coupon",
+    "link": "https://amzn.to/44f1VIb",
+    "image_url": "https://m.media-amazon.com/images/I/51zaB-tcEdL._SX679_.jpg",
+    "price": "20.00",
+    "commission": "0.00",
+    "status": "active"
+  },
+  {
     "market": "DE",
     "asin": "B0FJXN2FQV",
     "title": "德国狗粮包",
@@ -893,19 +906,6 @@
     "link": "https://amzn.to/4qpdNQj",
     "image_url": "https://m.media-amazon.com/images/I/71ndAI-FG+L._AC_SX679_.jpg",
     "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "US",
-    "asin": "B0DPN3J57K",
-    "title": "美国脱发治疗",
-    "keyword": "hair regrowth for men",
-    "store": "Amazon.com",
-    "remark": "Sold by Amazon.com\nuse coupon",
-    "link": "https://amzn.to/44f1VIb",
-    "image_url": "https://m.media-amazon.com/images/I/51zaB-tcEdL._SX679_.jpg",
-    "price": "20.00",
     "commission": "0.00",
     "status": "active"
   },
