@@ -54,6 +54,8 @@
     }
     .btn:hover{ opacity:.92; }
 
+    .hint-sub{ font-size:12px; color:#6b7280; margin-left:8px; }
+
     @media (max-width:768px){
       header h1{ font-size:1.5em; }
       .product-table th,.product-table td{ padding:8px; font-size:.8em; }
@@ -81,14 +83,24 @@
     .close:hover{ opacity:.7; }
 
     .empty{ padding:16px 12px; color:#6b7280; font-size:14px; }
+
+    .remark-cell{
+      position:relative;
+      min-width: 180px;
+    }
+    .remark-loading{
+      font-size:12px;
+      color:#6b7280;
+      margin-top:4px;
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Product List</h1>
+    <h1 id="pageTitle">Product List</h1>
 
-    <select class="country-select" id="countrySelect" onchange="filterProductsByCountry()">
+    <select class="country-select" id="countrySelect" onchange="onMarketChange()">
       <option value="UK">UK</option>
       <option value="US">US</option>
       <option value="DE">Germany</option>
@@ -99,7 +111,9 @@
       <option value="JP">Japan</option>
     </select>
 
-    <div class="contact-text">For inquiries, you can contact us via WhatsApp, Telegram, or Email:</div>
+    <div class="contact-text" id="contactText">
+      For inquiries, you can contact us via WhatsApp, Telegram, or Email:
+    </div>
 
     <div class="contact-actions">
       <a class="contact-btn" href="https://wa.me/8615778673666" target="_blank" rel="noopener">WhatsApp</a>
@@ -109,29 +123,30 @@
   </header>
 
   <section id="product-list">
-    <h2>Products</h2>
+    <h2 id="productsTitle">Products</h2>
 
     <div class="status-bar">
       <div class="status-left">
         <span class="badge" id="statusBadge">Loading…</span>
         <span class="muted" id="statusMeta"></span>
+        <span class="hint-sub" id="translateHint"></span>
       </div>
-      <button class="btn" onclick="fetchProductData(true)">Refresh</button>
+      <button class="btn" onclick="fetchProductData(true)" id="refreshBtn">Refresh</button>
     </div>
 
     <div class="product-table-container">
       <table class="product-table">
         <thead>
           <tr>
-            <th>Action</th>
-            <th>Market</th>
-            <th>Image</th>
-            <th>Title</th>
-            <th>Keyword</th>
-            <th>Store</th>
-            <th>Remark</th>
-            <th>Discount Price</th>
-            <th>Commission</th>
+            <th id="thAction">Action</th>
+            <th id="thMarket">Market</th>
+            <th id="thImage">Image</th>
+            <th id="thTitle">Title</th>
+            <th id="thKeyword">Keyword</th>
+            <th id="thStore">Store</th>
+            <th id="thRemark">Remark</th>
+            <th id="thPrice">Discount Price</th>
+            <th id="thCommission">Commission</th>
           </tr>
         </thead>
         <tbody id="product-table-body"></tbody>
@@ -155,8 +170,8 @@
     <div class="modal-inner" style="max-width:560px;" onclick="event.stopPropagation()">
       <span class="close" onclick="closeForwardModal(event)">&times;</span>
 
-      <h3 style="margin:0 0 10px 0;">Forward Product</h3>
-      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">
+      <h3 style="margin:0 0 10px 0;" id="forwardTitle">Forward Product</h3>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;" id="forwardSub">
         WhatsApp will open with the message pre-filled. You only need to press Send.
       </div>
 
@@ -165,7 +180,7 @@
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
-        <button class="btn" style="background:#374151;" onclick="copyForwardText()">Copy Text</button>
+        <button class="btn" style="background:#374151;" onclick="copyForwardText()" id="copyBtn">Copy Text</button>
         <a class="contact-btn" id="forwardWA" href="#" target="_blank" rel="noopener">WhatsApp</a>
         <a class="contact-btn" id="forwardTG" href="#" target="_blank" rel="noopener">Telegram</a>
         <a class="contact-btn" id="forwardMail" href="#">Email</a>
@@ -175,10 +190,7 @@
 
   <script>
     // ===== Config =====
-    // 站点: https://dalemy-1.github.io/product-list/
     const PRODUCTS_JSON_PATH = "/product-list/products.json";
-
-    // WhatsApp 接收号码（你提供的）
     const WA_PHONE = "8615778673666";
     const TG_USERNAME = "dalemyrong";
     const EMAIL_CONTACT = "info@dalemy.top";
@@ -188,6 +200,116 @@
     let LAST_LOADED_AT = null;
     let CURRENT_FORWARD_PRODUCT = null;
 
+    // ===== i18n (headers + small UI text) =====
+    const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
+
+    const UI_I18N = {
+      en: {
+        pageTitle: "Product List",
+        productsTitle: "Products",
+        contactText: "For inquiries, you can contact us via WhatsApp, Telegram, or Email:",
+        refresh: "Refresh",
+        translatingHint: "Remark auto-translation is enabled (original kept).",
+        forwardTitle: "Forward Product",
+        forwardSub: "WhatsApp will open with the message pre-filled. You only need to press Send.",
+        copy: "Copy Text",
+        th: {
+          action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword",
+          store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission"
+        },
+        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" }
+      },
+      de: {
+        pageTitle: "Produktliste",
+        productsTitle: "Produkte",
+        contactText: "Bei Fragen kontaktieren Sie uns über WhatsApp, Telegram oder E-Mail:",
+        refresh: "Aktualisieren",
+        translatingHint: "Automatische Übersetzung von Remark aktiv (Original bleibt erhalten).",
+        forwardTitle: "Produkt weiterleiten",
+        forwardSub: "WhatsApp öffnet sich mit vorbefüllter Nachricht. Sie müssen nur auf Senden tippen.",
+        copy: "Text kopieren",
+        th: {
+          action:"Aktion", market:"Markt", image:"Bild", title:"Titel", keyword:"Keyword",
+          store:"Shop", remark:"Hinweis", price:"Rabattpreis", commission:"Provision"
+        },
+        labels: { market:"Markt", price:"Rabattpreis", commission:"Provision", asin:"ASIN", link:"Link", remark:"Hinweis" }
+      },
+      fr: {
+        pageTitle: "Liste de produits",
+        productsTitle: "Produits",
+        contactText: "Pour toute question, contactez-nous via WhatsApp, Telegram ou e-mail :",
+        refresh: "Actualiser",
+        translatingHint: "Traduction automatique de Remark activée (original conservé).",
+        forwardTitle: "Transférer le produit",
+        forwardSub: "WhatsApp s’ouvrira avec le message prérempli. Il ne reste qu’à envoyer.",
+        copy: "Copier le texte",
+        th: {
+          action:"Action", market:"Marché", image:"Image", title:"Titre", keyword:"Mot-clé",
+          store:"Boutique", remark:"Remarque", price:"Prix remisé", commission:"Commission"
+        },
+        labels: { market:"Marché", price:"Prix remisé", commission:"Commission", asin:"ASIN", link:"Lien", remark:"Remarque" }
+      },
+      it: {
+        pageTitle: "Elenco prodotti",
+        productsTitle: "Prodotti",
+        contactText: "Per informazioni, contattaci tramite WhatsApp, Telegram o Email:",
+        refresh: "Aggiorna",
+        translatingHint: "Traduzione automatica di Remark attiva (originale conservato).",
+        forwardTitle: "Inoltra prodotto",
+        forwardSub: "WhatsApp si aprirà con il messaggio precompilato. Devi solo inviare.",
+        copy: "Copia testo",
+        th: {
+          action:"Azione", market:"Mercato", image:"Immagine", title:"Titolo", keyword:"Keyword",
+          store:"Negozio", remark:"Nota", price:"Prezzo scontato", commission:"Commissione"
+        },
+        labels: { market:"Mercato", price:"Prezzo scontato", commission:"Commissione", asin:"ASIN", link:"Link", remark:"Nota" }
+      },
+      es: {
+        pageTitle: "Lista de productos",
+        productsTitle: "Productos",
+        contactText: "Para consultas, contáctanos por WhatsApp, Telegram o Email:",
+        refresh: "Actualizar",
+        translatingHint: "Traducción automática de Remark activada (se conserva el original).",
+        forwardTitle: "Reenviar producto",
+        forwardSub: "WhatsApp se abrirá con el mensaje prellenado. Solo debes enviarlo.",
+        copy: "Copiar texto",
+        th: {
+          action:"Acción", market:"Mercado", image:"Imagen", title:"Título", keyword:"Keyword",
+          store:"Tienda", remark:"Nota", price:"Precio con descuento", commission:"Comisión"
+        },
+        labels: { market:"Mercado", price:"Precio con descuento", commission:"Comisión", asin:"ASIN", link:"Enlace", remark:"Nota" }
+      },
+      ja: {
+        pageTitle: "商品リスト",
+        productsTitle: "商品",
+        contactText: "お問い合わせは WhatsApp / Telegram / Email からご連絡ください：",
+        refresh: "更新",
+        translatingHint: "Remark は自動翻訳表示（原文は保持）。",
+        forwardTitle: "商品を転送",
+        forwardSub: "WhatsApp はメッセージが入力された状態で開きます。送信ボタンを押すだけです。",
+        copy: "コピー",
+        th: {
+          action:"操作", market:"マーケット", image:"画像", title:"商品名", keyword:"キーワード",
+          store:"店舗", remark:"備考", price:"割引価格", commission:"コミッション"
+        },
+        labels: { market:"マーケット", price:"割引価格", commission:"コミッション", asin:"ASIN", link:"リンク", remark:"備考" }
+      }
+    };
+
+    // ===== Currency formatting =====
+    const MARKET_CURRENCY = { US:"USD", UK:"GBP", DE:"EUR", FR:"EUR", IT:"EUR", ES:"EUR", CA:"CAD", JP:"JPY" };
+
+    function formatMoneyByMarket(value, market) {
+      const currency = MARKET_CURRENCY[market] || "USD";
+      const num = Number(String(value || "").replace(/[^\d.-]/g, ""));
+      if (!Number.isFinite(num)) return String(value || "");
+      const isJPY = currency === "JPY";
+      const isInt = Math.abs(num - Math.round(num)) < 1e-9;
+      const opts = { style:"currency", currency, minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2), maximumFractionDigits: isJPY ? 0 : 2 };
+      return new Intl.NumberFormat("en", opts).format(num);
+    }
+
+    // ===== UI helpers =====
     function setStatus(text, meta = "") {
       document.getElementById("statusBadge").textContent = text;
       document.getElementById("statusMeta").textContent = meta;
@@ -196,36 +318,141 @@
       document.getElementById("emptyHint").style.display = show ? "block" : "none";
     }
 
-    // ===== Currency formatting =====
-    const MARKET_CURRENCY = {
-      US: "USD",
-      UK: "GBP",
-      DE: "EUR",
-      FR: "EUR",
-      IT: "EUR",
-      ES: "EUR",
-      CA: "CAD",
-      JP: "JPY",
-    };
+    function currentMarket() {
+      return (document.getElementById("countrySelect").value || "UK").toUpperCase();
+    }
+    function currentLang() {
+      return LANG_BY_MARKET[currentMarket()] || "en";
+    }
+    function tUI() {
+      return UI_I18N[currentLang()] || UI_I18N.en;
+    }
 
-    function formatMoneyByMarket(value, market) {
-      const currency = MARKET_CURRENCY[market] || "USD";
-      const num = Number(String(value || "").replace(/[^\d.-]/g, ""));
-      if (!Number.isFinite(num)) return String(value || "");
+    function applyI18n() {
+      const T = tUI();
+      document.getElementById("pageTitle").textContent = T.pageTitle;
+      document.getElementById("productsTitle").textContent = T.productsTitle;
+      document.getElementById("contactText").textContent = T.contactText;
+      document.getElementById("refreshBtn").textContent = T.refresh;
+      document.getElementById("translateHint").textContent = T.translatingHint;
 
-      // 小数位规则：JPY 通常 0 位；其他货币若为整数则不显示 .00
-      const isJPY = currency === "JPY";
-      const isInt = Math.abs(num - Math.round(num)) < 1e-9;
+      document.getElementById("forwardTitle").textContent = T.forwardTitle;
+      document.getElementById("forwardSub").textContent = T.forwardSub;
+      document.getElementById("copyBtn").textContent = T.copy;
 
-      const opts = {
-        style: "currency",
-        currency,
-        minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2),
-        maximumFractionDigits: isJPY ? 0 : 2,
-      };
+      document.getElementById("thAction").textContent = T.th.action;
+      document.getElementById("thMarket").textContent = T.th.market;
+      document.getElementById("thImage").textContent = T.th.image;
+      document.getElementById("thTitle").textContent = T.th.title;
+      document.getElementById("thKeyword").textContent = T.th.keyword;
+      document.getElementById("thStore").textContent = T.th.store;
+      document.getElementById("thRemark").textContent = T.th.remark;
+      document.getElementById("thPrice").textContent = T.th.price;
+      document.getElementById("thCommission").textContent = T.th.commission;
+    }
 
-      // 选个通用 locale，让符号显示出来即可
-      return new Intl.NumberFormat("en", opts).format(num);
+    // ===== Translation (Remark only) =====
+    const TRANSLATE_ENDPOINT = "https://api.mymemory.translated.net/get";
+    const TRANSLATE_CACHE_KEY = "remark_translate_cache_v1";
+    const translateCache = loadCache();
+
+    function loadCache() {
+      try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); }
+      catch { return {}; }
+    }
+    function saveCache() {
+      try { localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(translateCache)); } catch {}
+    }
+    function cacheKey(lang, text) {
+      return lang + "||" + text;
+    }
+
+    async function translateRemark(text, targetLang) {
+      const q = (text || "").trim();
+      if (!q) return "";
+      const key = cacheKey(targetLang, q);
+      if (translateCache[key]) return translateCache[key];
+
+      // MyMemory: auto|xx
+      const url = TRANSLATE_ENDPOINT + "?q=" + encodeURIComponent(q) + "&langpair=" + encodeURIComponent("auto|" + targetLang);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("translate http " + res.status);
+      const data = await res.json();
+
+      const translated = (data && data.responseData && data.responseData.translatedText) ? String(data.responseData.translatedText) : "";
+      // 如果返回空，就回退原文
+      const out = translated.trim() ? translated.trim() : q;
+
+      translateCache[key] = out;
+      saveCache();
+      return out;
+    }
+
+    // 限速队列：避免瞬间请求过多
+    let translateQueue = [];
+    let translating = false;
+
+    function enqueueTranslate(task) {
+      translateQueue.push(task);
+      if (!translating) runTranslateQueue();
+    }
+
+    async function runTranslateQueue() {
+      translating = true;
+      while (translateQueue.length) {
+        const task = translateQueue.shift();
+        try { await task(); } catch {}
+        await sleep(250); // 轻微限速
+      }
+      translating = false;
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function translateVisibleRemarks() {
+      const lang = currentLang();
+      // 英文市场不翻译
+      if (lang === "en") {
+        // 直接显示原文
+        document.querySelectorAll(".remark-cell").forEach(td => {
+          const orig = td.dataset.remarkOriginal || "";
+          td.textContent = orig;
+          td.title = orig;
+        });
+        return;
+      }
+
+      const visibleRows = Array.from(document.querySelectorAll(".product-row"))
+        .filter(r => r.style.display !== "none");
+
+      visibleRows.forEach(row => {
+        const td = row.querySelector(".remark-cell");
+        if (!td) return;
+
+        const orig = (td.dataset.remarkOriginal || "").trim();
+        if (!orig) return;
+
+        const key = cacheKey(lang, orig);
+        if (translateCache[key]) {
+          td.textContent = translateCache[key];
+          td.title = orig; // 鼠标悬停显示原文，保证“文档为准”
+          return;
+        }
+
+        // 显示“翻译中…”
+        td.textContent = orig;
+        td.title = orig;
+
+        const loading = row.querySelector(".remark-loading");
+        if (loading) loading.textContent = "Translating…";
+
+        enqueueTranslate(async () => {
+          const translated = await translateRemark(orig, lang);
+          td.textContent = translated;
+          td.title = orig;
+          if (loading) loading.textContent = "";
+        });
+      });
     }
 
     // ===== Fetch JSON =====
@@ -246,6 +473,8 @@
 
           displayProducts(ALL_PRODUCTS);
           filterProductsByCountry();
+          applyI18n();
+          translateVisibleRemarks();
 
           setStatus("Loaded", `${products.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
           showEmptyHint(products.length === 0);
@@ -266,16 +495,16 @@
       products.forEach(product => {
         const row = document.createElement("tr");
         row.classList.add("product-row");
-        row.setAttribute("data-market", (product.market || "").trim());
+        const market = (product.market || "").trim().toUpperCase();
+        row.setAttribute("data-market", market);
 
         const safeTitle = escapeHtml(product.title || "");
         const safeKeyword = escapeHtml(product.keyword || "");
         const safeStore = escapeHtml(product.store || "");
-        const safeRemark = escapeHtml(product.remark || "");
+        const origRemark = String(product.remark || "");
         const link = (product.link || "").trim();
         const img = (product.image_url || "").trim();
 
-        const market = (product.market || "").trim();
         const priceFormatted = formatMoneyByMarket(product.price, market);
         const commissionFormatted = formatMoneyByMarket(product.commission, market);
 
@@ -296,7 +525,10 @@
           <td style="cursor:pointer;" title="Click to copy"
               onclick="copyToClipboard('${escapeAttr(product.keyword || "")}')">${safeKeyword}</td>
           <td>${safeStore}</td>
-          <td>${safeRemark}</td>
+          <td>
+            <div class="remark-cell" data-remark-original="${escapeAttr(origRemark)}" title="${escapeAttr(origRemark)}">${escapeHtml(origRemark)}</div>
+            <div class="remark-loading"></div>
+          </td>
           <td>${escapeHtml(priceFormatted)}</td>
           <td>${escapeHtml(commissionFormatted)}</td>
         `;
@@ -328,7 +560,7 @@
 
     // ===== Filter =====
     function filterProductsByCountry() {
-      const selectedCountry = document.getElementById("countrySelect").value;
+      const selectedCountry = currentMarket();
       const rows = document.querySelectorAll(".product-row");
 
       let visibleCount = 0;
@@ -349,10 +581,16 @@
       }
     }
 
+    function onMarketChange() {
+      filterProductsByCountry();
+      applyI18n();
+      translateVisibleRemarks();
+    }
+
     // ===== Copy keyword =====
     function copyToClipboard(text) {
       if (!text) return;
-      copyText(text).then(() => alert("Keyword copied!")).catch(() => alert("Copy failed"));
+      copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
     }
 
     function copyText(text) {
@@ -380,38 +618,56 @@
       document.getElementById("modalImg").src = "";
     }
 
-    // ===== Forward Modal =====
-    function openForwardModal(product) {
+    // ===== Forward Modal (uses translated remark for user, keeps original as tooltip) =====
+    async function openForwardModal(product) {
       CURRENT_FORWARD_PRODUCT = product;
 
-      const text = buildForwardText(product);
+      const market = (product.market || "").trim().toUpperCase();
+      const lang = LANG_BY_MARKET[market] || "en";
+      const T = UI_I18N[lang] || UI_I18N.en;
+
+      // Remark：显示翻译，但原文保留在括号里（保证“文档为准”）
+      const remarkOrig = String(product.remark || "").trim();
+      let remarkDisplay = remarkOrig;
+      if (remarkOrig && lang !== "en") {
+        try {
+          const translated = await translateRemark(remarkOrig, lang);
+          if (translated && translated !== remarkOrig) {
+            remarkDisplay = `${translated} (orig: ${remarkOrig})`;
+          }
+        } catch {
+          remarkDisplay = remarkOrig;
+        }
+      }
+
+      const text = buildForwardTextLocalized(product, T.labels, market, remarkDisplay);
       document.getElementById("forwardPreview").textContent = text;
 
-      // WhatsApp：phone + text 预填（你要求的“自动粘贴到对话框”能做到的上限）
-      // 说明：会打开 WhatsApp 并把 text 放在输入框，用户只需点发送
+      // WhatsApp：phone + text 预填
       const waUrl = "https://wa.me/" + WA_PHONE + "?text=" + encodeURIComponent(text);
-      const waBtn = document.getElementById("forwardWA");
-      waBtn.href = waUrl;
+      document.getElementById("forwardWA").href = waUrl;
 
-      // Telegram：share/url 预填 text + url（官方方式）
-      // Telegram：直接进入与你的账号私聊，而不是“选择联系人”
-// 方式：先复制文案，再打开你的私聊链接
-const tgBtn = document.getElementById("forwardTG");
-tgBtn.href = "https://t.me/" + TG_USERNAME;
-tgBtn.onclick = (e) => {
-  e.preventDefault();
-  copyText(text)
-    .then(() => window.open("https://t.me/" + TG_USERNAME, "_blank"))
-    .catch(() => window.open("https://t.me/" + TG_USERNAME, "_blank"));
-};
-
+      // Telegram：直接进入你的私聊（不走联系人选择）
+      const tgBtn = document.getElementById("forwardTG");
+      tgBtn.href = "https://t.me/" + TG_USERNAME;
+      tgBtn.onclick = (e) => {
+        e.preventDefault();
+        copyText(text)
+          .then(() => window.open("https://t.me/" + TG_USERNAME, "_blank"))
+          .catch(() => window.open("https://t.me/" + TG_USERNAME, "_blank"));
+      };
 
       // Email：mailto 预填
-      const subject = `[${product.market || ""}] ${product.title || "Product"}`.trim();
+      const subject = `[${market}] ${product.title || "Product"}`.trim();
       document.getElementById("forwardMail").href =
         "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
         "?subject=" + encodeURIComponent(subject) +
         "&body=" + encodeURIComponent(text);
+
+      // forward UI i18n
+      document.getElementById("forwardTitle").textContent = T.forwardTitle;
+      document.getElementById("forwardSub").textContent = T.forwardSub;
+      document.getElementById("copyBtn").textContent = T.copy;
 
       document.getElementById("forwardModal").style.display = "block";
     }
@@ -421,71 +677,25 @@ tgBtn.onclick = (e) => {
       CURRENT_FORWARD_PRODUCT = null;
     }
 
-    function buildForwardText(p) {
-  const market = (p.market || "").trim().toUpperCase();
+    function buildForwardTextLocalized(p, labels, market, remarkDisplay) {
+      const price = formatMoneyByMarket(p.price, market);
+      const commission = formatMoneyByMarket(p.commission, market);
 
-  const price = formatMoneyByMarket(p.price, market);
-  const commission = formatMoneyByMarket(p.commission, market);
-
-  // 多语言字段名
-  const LABELS = {
-    EN: { market: "Market", price: "Discount Price", commission: "Commission", asin: "ASIN", link: "Link", remark: "Remark" },
-    DE: { market: "Markt",  price: "Rabattpreis",    commission: "Provision",  asin: "ASIN", link: "Link", remark: "Hinweis" },
-    FR: { market: "Marché", price: "Prix remisé",    commission: "Commission", asin: "ASIN", link: "Lien", remark: "Remarque" },
-    IT: { market: "Mercato",price: "Prezzo scontato",commission: "Commissione",asin: "ASIN", link: "Link", remark: "Nota" },
-    ES: { market: "Mercado",price: "Precio con descuento", commission: "Comisión", asin: "ASIN", link: "Enlace", remark: "Nota" },
-    JP: { market: "マーケット", price: "割引価格", commission: "コミッション", asin: "ASIN", link: "リンク", remark: "備考" },
-  };
-
-  // Market -> 语言
-  const LANG_BY_MARKET = {
-    US: "EN",
-    UK: "EN",
-    CA: "EN",
-    DE: "DE",
-    FR: "FR",
-    IT: "IT",
-    ES: "ES",
-    JP: "JP",
-  };
-
-  const langKey = LANG_BY_MARKET[market] || "EN";
-  const L = LABELS[langKey];
-
-  // 不同语言的引导语（可选）
-  const INTRO = {
-    EN: "Product details:",
-    DE: "Produktdetails:",
-    FR: "Détails du produit :",
-    IT: "Dettagli del prodotto:",
-    ES: "Detalles del producto:",
-    JP: "商品詳細：",
-  };
-
-  const lines = [];
-
-  // 标题（原样输出，避免误译）
-  if (p.title) lines.push(p.title);
-
-  // 可选：加一句引导语（你如果不想要，就删掉下一行）
-  // lines.push(INTRO[langKey]);
-
-  lines.push(`${L.market}: ${market || "-"}`);
-
-  if (p.price) lines.push(`${L.price}: ${price}`);
-  if (p.commission) lines.push(`${L.commission}: ${commission}`);
-  if (p.asin) lines.push(`${L.asin}: ${p.asin}`);
-  if (p.link) lines.push(`${L.link}: ${p.link}`);
-  if (p.remark) lines.push(`${L.remark}: ${p.remark}`);
-
-  return lines.join("\n");
-}
-
+      const lines = [];
+      if (p.title) lines.push(p.title);
+      lines.push(`${labels.market}: ${market || "-"}`);
+      if (p.price) lines.push(`${labels.price}: ${price}`);
+      if (p.commission) lines.push(`${labels.commission}: ${commission}`);
+      if (p.asin) lines.push(`${labels.asin}: ${p.asin}`);
+      if (p.link) lines.push(`${labels.link}: ${p.link}`);
+      if (remarkDisplay) lines.push(`${labels.remark}: ${remarkDisplay}`);
+      return lines.join("\n");
+    }
 
     function copyForwardText() {
       const text = document.getElementById("forwardPreview").textContent || "";
       if (!text) return;
-      copyText(text).then(() => alert("Forward text copied!")).catch(() => alert("Copy failed"));
+      copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
     }
 
     // ===== XSS safety =====
@@ -504,13 +714,11 @@ tgBtn.onclick = (e) => {
       const savedCountry = localStorage.getItem("selectedCountry");
       document.getElementById("countrySelect").value = savedCountry || "UK";
 
+      applyI18n();
       fetchProductData(false);
 
-      // 每 15 分钟刷新显示；数据本体由 GitHub Actions 每 15 分钟生成 products.json
       setInterval(() => fetchProductData(false), 15 * 60 * 1000);
     };
   </script>
 </body>
 </html>
-
-
