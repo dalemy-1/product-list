@@ -62,23 +62,13 @@
     .product-table th{
       background:#f4f4f4;
       position:sticky; top:0; z-index:1;
-      white-space:nowrap;         /* ✅ 表头不再随意换行 */
+      white-space:nowrap;
     }
 
-    /* ✅ 价格列最小宽度，避免“Discou / t Price”这种断字 */
     .col-price, .col-commission{ min-width:120px; }
 
-    /* ✅ 可点击排序的表头样式 */
-    .sortable{
-      cursor:pointer;
-      user-select:none;
-    }
-    .sort-ind{
-      display:inline-block;
-      margin-left:6px;
-      font-size:12px;
-      color:#6b7280;
-    }
+    .sortable{ cursor:pointer; user-select:none; }
+    .sort-ind{ display:inline-block; margin-left:6px; font-size:12px; color:#6b7280; }
 
     /* 图片放大 + 居中 */
     .img-cell{ display:flex; justify-content:center; align-items:center; }
@@ -96,6 +86,22 @@
       background:#111827; color:#fff; cursor:pointer; font-weight:600; font-size:13px; white-space:nowrap;
     }
     .btn:hover{ opacity:.92; }
+
+    /* ✅ 状态筛选下拉 */
+    .status-filter{
+      padding:6px 10px;
+      border-radius:8px;
+      border:1px solid #ddd;
+      background:#fff;
+      font-size:12px;
+      color:#111827;
+    }
+    .status-label{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      padding-left:6px;
+    }
 
     @media (max-width:768px){
       header h1{ font-size:1.5em; }
@@ -160,11 +166,19 @@
         <span class="badge" id="statusBadge">Loading…</span>
         <span class="muted" id="statusMeta"></span>
         <span class="hint-sub" id="translateHint"></span>
+
+        <!-- ✅ 新增：Status 筛选 -->
+        <span class="status-label">
+          <span class="muted">Status</span>
+          <select class="status-filter" id="statusFilter" onchange="onStatusChange()">
+            <option value="ALL">All</option>
+          </select>
+        </span>
       </div>
       <button class="btn" onclick="fetchProductData(true)" id="refreshBtn">Refresh</button>
     </div>
 
-    <!-- ✅ Notice：现在保证能渲染内容 -->
+    <!-- Notice -->
     <div class="notice-box" id="noticeBox">
       <div class="notice-head">
         <div class="notice-title" id="noticeTitle">Important Notice</div>
@@ -184,8 +198,6 @@
             <th id="thKeyword">Keyword</th>
             <th id="thStore">Store</th>
             <th id="thRemark">Remark</th>
-
-            <!-- ✅ 这两列可点击排序：大→小；再点恢复默认 -->
             <th id="thPrice" class="col-price sortable" onclick="toggleSort('price')">
               Discount Price <span class="sort-ind" id="indPrice"></span>
             </th>
@@ -241,10 +253,13 @@
     // ✅ 排序状态：null=默认；'price'/'commission'=按该列从大到小
     let SORT_KEY = null;
 
+    // ✅ 状态筛选：默认 ALL
+    let CURRENT_STATUS = "ALL";
+
     // ===== Language mapping =====
     const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
 
-    // ===== i18n UI（你的原版可更完整；这里做兜底，不会影响你已有的）=====
+    // ===== i18n UI（兜底）=====
     const UI_I18N = window.UI_I18N || {
       en: {
         pageTitle: "Product List",
@@ -396,17 +411,16 @@
       if (raw === "" || raw === null || raw === undefined) return "";
       const num = Number(raw.replace(/[^\d.-]/g, ""));
       if (!Number.isFinite(num)) return raw;
-
       const isJPY = currency === "JPY";
       const isInt = Math.abs(num - Math.round(num)) < 1e-9;
       const opts = { style:"currency", currency, minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2), maximumFractionDigits: isJPY ? 0 : 2 };
       return new Intl.NumberFormat("en", opts).format(num);
     }
 
-    // 用于排序：把金额字符串转成 number（£0 / €20 / 0 / 空 都能处理）
+    // 用于排序
     function toNumberMoney(v) {
       const raw = String(v ?? "").trim();
-      if (!raw) return -Infinity; // 空值排最后
+      if (!raw) return -Infinity;
       const num = Number(raw.replace(/[^\d.-]/g, ""));
       return Number.isFinite(num) ? num : -Infinity;
     }
@@ -429,7 +443,7 @@
       return UI_I18N[currentLang()] || UI_I18N.en;
     }
 
-    // ✅ Notice 渲染（修复你“信息丢失不显示”的问题）
+    // ===== Notice render =====
     function renderNotice() {
       const lang = currentLang();
       const T = tUI();
@@ -444,17 +458,15 @@
         ? (T.noticeShow || "Show")
         : (T.noticeHide || "Hide");
 
-      // 这里把 notice 内容真正写进去
       contentEl.innerHTML = N.html || NOTICE_I18N.en.html;
     }
-
     function toggleNotice() {
       const isHidden = localStorage.getItem("notice_hidden") === "1";
       localStorage.setItem("notice_hidden", isHidden ? "0" : "1");
       renderNotice();
     }
 
-    // ===== Translation（保留你现在的逻辑；这里仅兜底不破坏）=====
+    // ===== Translation（Remark only, Chinese only）=====
     const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
     const translateCache = loadCache();
     function loadCache() { try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); } catch { return {}; } }
@@ -604,12 +616,45 @@
       document.getElementById("thStore").textContent = T.th.store;
       document.getElementById("thRemark").textContent = T.th.remark;
 
-      // 注意：这两列文字我们保留“Discount Price / Commission”英文也行
-      // 如果你已有各语言表头，也可改成 T.th.price / T.th.commission
-      // document.getElementById("thPrice").childNodes[0].textContent = T.th.price;
-
       renderNotice();
       refreshSortIndicators();
+    }
+
+    // ===== Status filter =====
+    function initStatusFilter(products) {
+      const sel = document.getElementById("statusFilter");
+      if (!sel) return;
+
+      const statuses = Array.from(new Set(
+        products.map(p => String(p.status || "").trim()).filter(Boolean)
+      ));
+
+      sel.innerHTML = `<option value="ALL">All</option>`;
+      statuses.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.textContent = s;
+        sel.appendChild(opt);
+      });
+
+      // 保留之前选择
+      const saved = localStorage.getItem("selectedStatus") || "ALL";
+      if ([...sel.options].some(o => o.value === saved)) {
+        sel.value = saved;
+        CURRENT_STATUS = saved;
+      } else {
+        sel.value = "ALL";
+        CURRENT_STATUS = "ALL";
+      }
+    }
+
+    function onStatusChange() {
+      const sel = document.getElementById("statusFilter");
+      CURRENT_STATUS = (sel && sel.value) ? sel.value : "ALL";
+      localStorage.setItem("selectedStatus", CURRENT_STATUS);
+
+      renderTable();
+      translateVisibleRemarks();
     }
 
     // ===== Fetch JSON =====
@@ -625,9 +670,11 @@
         .then(products => {
           if (!Array.isArray(products)) throw new Error("products.json is not an array");
 
-          // 保留原顺序（默认顺序）
           ALL_PRODUCTS = products.map((p, idx) => ({ ...p, __idx: idx }));
           LAST_LOADED_AT = new Date();
+
+          // ✅ 初始化状态筛选选项
+          initStatusFilter(ALL_PRODUCTS);
 
           renderTable();
           applyI18n();
@@ -646,7 +693,6 @@
 
     // ===== Sorting =====
     function toggleSort(key) {
-      // 点击同一个 key：开/关（大到小 / 默认）
       if (SORT_KEY === key) SORT_KEY = null;
       else SORT_KEY = key;
 
@@ -658,7 +704,6 @@
     function refreshSortIndicators() {
       const indPrice = document.getElementById("indPrice");
       const indCommission = document.getElementById("indCommission");
-
       indPrice.textContent = (SORT_KEY === "price") ? "▼" : "";
       indCommission.textContent = (SORT_KEY === "commission") ? "▼" : "";
     }
@@ -666,14 +711,18 @@
     // ===== Render table with filter + sort =====
     function getVisibleProducts() {
       const m = currentMarket();
-      let list = ALL_PRODUCTS.filter(p => String(p.market || "").trim().toUpperCase() === m);
+
+      let list = ALL_PRODUCTS.filter(p => {
+        const okMarket = String(p.market || "").trim().toUpperCase() === m;
+        const okStatus = (CURRENT_STATUS === "ALL") || (String(p.status || "").trim() === CURRENT_STATUS);
+        return okMarket && okStatus;
+      });
 
       if (SORT_KEY === "price") {
         list = [...list].sort((a, b) => toNumberMoney(b.price) - toNumberMoney(a.price));
       } else if (SORT_KEY === "commission") {
         list = [...list].sort((a, b) => toNumberMoney(b.commission) - toNumberMoney(a.commission));
       } else {
-        // 默认顺序：按原始 idx
         list = [...list].sort((a, b) => (a.__idx ?? 0) - (b.__idx ?? 0));
       }
       return list;
@@ -762,7 +811,7 @@
 
     // ===== Market change =====
     function onMarketChange() {
-      SORT_KEY = null; // 切换国家时默认恢复默认顺序（你也可以删除这行）
+      SORT_KEY = null;
       renderTable();
       applyI18n();
       translateVisibleRemarks();
@@ -879,6 +928,39 @@
     }
     function escapeAttr(str) { return escapeHtml(str); }
 
+    // ===== Auto check update every 60s (HEAD only) =====
+    let LAST_ETAG = null;
+    let LAST_MODIFIED = null;
+
+    async function checkAndRefreshProducts() {
+      try {
+        const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
+        const res = await fetch(url, {
+          method: "HEAD",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" }
+        });
+        if (!res.ok) return;
+
+        const etag = res.headers.get("etag");
+        const lm = res.headers.get("last-modified");
+
+        const changed =
+          (etag && etag !== LAST_ETAG) ||
+          (lm && lm !== LAST_MODIFIED) ||
+          (!etag && !lm);
+
+        if (!changed) return;
+
+        LAST_ETAG = etag || LAST_ETAG;
+        LAST_MODIFIED = lm || LAST_MODIFIED;
+
+        fetchProductData(false);
+      } catch (e) {
+        console.warn("Auto check failed:", e);
+      }
+    }
+
     // ===== Init =====
     window.onload = function () {
       purgeBadCacheEntries();
@@ -889,8 +971,8 @@
       applyI18n();
       fetchProductData(false);
 
-      // 10分钟同步一次
-      setInterval(() => fetchProductData(false), 10 * 60 * 1000);
+      // ✅ 默认 60 秒检查 products.json 是否更新（有变化才刷新）
+      setInterval(checkAndRefreshProducts, 60 * 1000);
     };
   </script>
 </body>
