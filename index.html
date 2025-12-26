@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Product List</title>
   <style>
     body {
@@ -40,68 +40,68 @@
       color: #fff;
       line-height: 1.5;
     }
-    .contact-actions{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:10px;
+    .contact-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
       padding: 0 12px;
     }
-    .contact-btn{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:10px 14px;
-      border-radius:10px;
-      background:#ffffff;
-      color:#111827;
-      text-decoration:none;
-      border:1px solid rgba(255,255,255,.35);
-      font-weight:600;
-      font-size:14px;
+    .contact-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #111827;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,.35);
+      font-weight: 600;
+      font-size: 14px;
     }
-    .contact-btn:hover{ opacity:.92; }
+    .contact-btn:hover { opacity: .92; }
 
-    section#product-list{
+    section#product-list {
       max-width: 1200px;
       margin: 18px auto 30px;
       padding: 0 12px;
     }
-    section#product-list h2{
+    section#product-list h2 {
       margin: 0 0 10px 0;
       font-size: 20px;
     }
 
-    .status-bar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:10px;
-      margin-bottom:10px;
-      flex-wrap:wrap;
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
     }
-    .status-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .badge{
-      padding:4px 10px;
-      border-radius:999px;
-      border:1px solid #e5e7eb;
-      background:#f9fafb;
-      font-size:12px;
-      color:#374151;
+    .status-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      font-size: 12px;
+      color: #374151;
     }
-    .muted{ color:#6b7280; font-size:12px; }
+    .muted { color: #6b7280; font-size: 12px; }
 
     .product-table-container {
       width: 100%;
       overflow-x: auto;
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
     }
     .product-table {
       width: 100%;
@@ -130,8 +130,8 @@
       object-fit: contain;
       cursor: pointer;
       border-radius: 6px;
-      border:1px solid #e5e7eb;
-      background:#fff;
+      border: 1px solid #e5e7eb;
+      background: #fff;
     }
     .product-title {
       font-weight: bold;
@@ -145,20 +145,19 @@
     }
     .product-link:hover { text-decoration: underline; }
 
-    .btn{
-      padding:8px 10px;
-      border-radius:10px;
-      border:1px solid #e5e7eb;
-      background:#111827;
-      color:#fff;
-      cursor:pointer;
-      font-weight:600;
-      font-size:13px;
-      white-space:nowrap;
+    .btn {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #111827;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      white-space: nowrap;
     }
-    .btn:hover{ opacity:.92; }
+    .btn:hover { opacity: .92; }
 
-    /* Mobile optimization */
     @media (max-width: 768px) {
       header h1 { font-size: 1.5em; }
       .product-table th, .product-table td { padding: 8px; font-size: 0.8em; }
@@ -168,7 +167,7 @@
       .product-table { min-width: 920px; }
     }
 
-    /* Modal (image pop-up) */
+    /* Modal shared base */
     .modal {
       display: none;
       position: fixed;
@@ -180,14 +179,15 @@
       background-color: rgba(0, 0, 0, 0.7);
       padding-top: 60px;
     }
-    .modal-inner{
+    .modal-inner {
       width: 90%;
       max-width: 900px;
       margin: 0 auto;
       position: relative;
-      background:#fff;
-      border-radius:14px;
-      padding:14px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
     }
     .modal-content {
       display: block;
@@ -205,15 +205,15 @@
       font-size: 26px;
       font-weight: bold;
       cursor: pointer;
-      user-select:none;
+      user-select: none;
       line-height: 1;
     }
-    .close:hover { opacity:.7; }
+    .close:hover { opacity: .7; }
 
-    .empty{
-      padding:16px 12px;
-      color:#6b7280;
-      font-size:14px;
+    .empty {
+      padding: 16px 12px;
+      color: #6b7280;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -238,15 +238,9 @@
     </div>
 
     <div class="contact-actions">
-      <a class="contact-btn" href="https://wa.me/message/DFLXQVO45JMMB1" target="_blank" rel="noopener">
-        WhatsApp
-      </a>
-      <a class="contact-btn" href="https://t.me/dalemyrong" target="_blank" rel="noopener">
-        Telegram
-      </a>
-      <a class="contact-btn" href="mailto:info@dalemy.top">
-        Email
-      </a>
+      <a class="contact-btn" href="https://wa.me/message/DFLXQVO45JMMB1" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="contact-btn" href="https://t.me/dalemyrong" target="_blank" rel="noopener">Telegram</a>
+      <a class="contact-btn" href="mailto:info@dalemy.top">Email</a>
     </div>
   </header>
 
@@ -276,9 +270,7 @@
             <th>Commission</th>
           </tr>
         </thead>
-        <tbody id="product-table-body">
-          <!-- Products will be populated here -->
-        </tbody>
+        <tbody id="product-table-body"></tbody>
       </table>
       <div class="empty" id="emptyHint" style="display:none;">
         No products loaded. If this is your first time, run GitHub Actions once to generate products.json.
@@ -287,22 +279,52 @@
   </section>
 
   <!-- Image Modal -->
-  <div id="imgModal" class="modal" onclick="closeModal(event)">
+  <div id="imgModal" class="modal" onclick="closeImageModal(event)">
     <div class="modal-inner" onclick="event.stopPropagation()">
-      <span class="close" onclick="closeModal(event)">&times;</span>
+      <span class="close" onclick="closeImageModal(event)">&times;</span>
       <img class="modal-content" id="modalImg" alt="Product image">
     </div>
   </div>
 
+  <!-- Forward Modal -->
+  <div id="forwardModal" class="modal" onclick="closeForwardModal(event)">
+    <div class="modal-inner" style="max-width:520px;" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeForwardModal(event)">&times;</span>
+
+      <h3 style="margin:0 0 10px 0;">Forward Product</h3>
+
+      <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">
+        Choose a channel, or copy the message first.
+      </div>
+
+      <div id="forwardPreview"
+           style="border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.4;">
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
+        <button class="btn" style="background:#374151;" onclick="copyForwardText()">Copy Text</button>
+        <a class="contact-btn" id="forwardWA" href="#" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="contact-btn" id="forwardTG" href="#" target="_blank" rel="noopener">Telegram</a>
+        <a class="contact-btn" id="forwardMail" href="#">Email</a>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // ========= Config =========
-    // products.json 必须放在“与此页面同目录”下（同域同目录）
-    // 如果你的 products.json 放在站点根目录，而本页面在 /it/ 目录，则把下面改成："/products.json"
+    // ===== Config =====
+    // 你的站点是 https://dalemy-1.github.io/product-list/
+    // products.json 放在仓库根目录，则页面读取应使用绝对路径：
     const PRODUCTS_JSON_PATH = "/product-list/products.json";
 
-    // ========= State =========
+    // 联系方式
+    const WA_CONTACT = "https://wa.me/message/DFLXQVO45JMMB1";
+    const TG_USERNAME = "dalemyrong";
+    const EMAIL_CONTACT = "info@dalemy.top";
+
+    // ===== State =====
     let ALL_PRODUCTS = [];
     let LAST_LOADED_AT = null;
+    let CURRENT_FORWARD_PRODUCT = null;
 
     function setStatus(text, meta = "") {
       document.getElementById("statusBadge").textContent = text;
@@ -313,12 +335,10 @@
       document.getElementById("emptyHint").style.display = show ? "block" : "none";
     }
 
-    // ========= Fetch JSON (same-origin) =========
+    // ===== Fetch JSON =====
     function fetchProductData(manual = false) {
-      const url = PRODUCTS_JSON_PATH + (PRODUCTS_JSON_PATH.includes("?") ? "&" : "?") + "ts=" + Date.now();
-
-      if (manual) setStatus("Refreshing…", "Fetching products.json");
-      else setStatus("Loading…", "Fetching products.json");
+      const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
+      setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
 
       fetch(url, { cache: "no-store" })
         .then(res => {
@@ -331,7 +351,6 @@
           ALL_PRODUCTS = products;
           LAST_LOADED_AT = new Date();
 
-          const selectedCountry = document.getElementById("countrySelect").value;
           displayProducts(ALL_PRODUCTS);
           filterProductsByCountry();
 
@@ -340,14 +359,15 @@
         })
         .catch(err => {
           console.error("Failed to load products.json:", err);
-          setStatus("Load failed", "Please ensure GitHub Actions generated products.json");
+          setStatus("Load failed", err.message);
           showEmptyHint(true);
-          // 不弹窗刷屏，手动刷新才提示
-          if (manual) alert("无法读取 products.json。\n\n常见原因：\n1) 还没生成 products.json（先在 GitHub Actions 手动 Run 一次）\n2) products.json 路径不对（页面在 /it/，但 products.json 在根目录）\n\n错误信息：\n" + err.message);
+          if (manual) {
+            alert("Failed to load products.json.\n\n" + err.message);
+          }
         });
     }
 
-    // ========= Render =========
+    // ===== Render =====
     function displayProducts(products) {
       const tbody = document.getElementById("product-table-body");
       tbody.innerHTML = "";
@@ -365,11 +385,13 @@
         const img = (product.image_url || "").trim();
 
         row.innerHTML = `
-          <td><button class="btn" onclick="forwardProduct('${escapeAttr(product.asin || "")}')">Forward</button></td>
+          <td>
+            <button class="btn" onclick='openForwardModal(${encodeProductForOnclick(product)})'>Forward</button>
+          </td>
           <td>${escapeHtml(product.market || "")}</td>
           <td>
             ${img ? `
-              <img src="${escapeAttr(img)}" alt="${safeTitle}" class="product-image" onclick="openModal('${escapeAttr(img)}')" />
+              <img src="${escapeAttr(img)}" alt="${safeTitle}" class="product-image" onclick="openImageModal('${escapeAttr(img)}')" />
             ` : ""}
             ${link ? `<div style="margin-top:6px;"><a class="product-link" href="${escapeAttr(link)}" target="_blank" rel="noopener">Open</a></div>` : ""}
           </td>
@@ -380,13 +402,34 @@
           <td>${escapeHtml(product.price || "")}</td>
           <td>${escapeHtml(product.commission || "")}</td>
         `;
+
         tbody.appendChild(row);
       });
 
       showEmptyHint(products.length === 0);
     }
 
-    // ========= Filter =========
+    function encodeProductForOnclick(product) {
+      const safe = {
+        market: product.market || "",
+        asin: product.asin || "",
+        title: product.title || "",
+        keyword: product.keyword || "",
+        store: product.store || "",
+        remark: product.remark || "",
+        link: product.link || "",
+        image_url: product.image_url || "",
+        price: product.price || "",
+        commission: product.commission || "",
+        status: product.status || ""
+      };
+      return JSON.stringify(safe)
+        .replaceAll("&", "\\u0026")
+        .replaceAll("<", "\\u003c")
+        .replaceAll(">", "\\u003e");
+    }
+
+    // ===== Filter =====
     function filterProductsByCountry() {
       const selectedCountry = document.getElementById("countrySelect").value;
       const rows = document.querySelectorAll(".product-row");
@@ -404,54 +447,113 @@
 
       localStorage.setItem("selectedCountry", selectedCountry);
 
-      // 状态栏补充显示
       if (LAST_LOADED_AT) {
         setStatus("Loaded", `${visibleCount}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`);
       }
     }
 
-    // ========= Utilities =========
+    // ===== Copy keyword =====
     function copyToClipboard(text) {
       if (!text) return;
+      copyText(text)
+        .then(() => alert("Keyword copied!"))
+        .catch(() => alert("Copy failed"));
+    }
+
+    function copyText(text) {
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(() => {
-          alert("Keyword copied!");
-        }).catch(() => fallbackCopy(text));
-      } else {
-        fallbackCopy(text);
+        return navigator.clipboard.writeText(text);
       }
+      return new Promise((resolve, reject) => {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
     }
 
-    function fallbackCopy(text) {
-      const el = document.createElement("textarea");
-      el.value = text;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-      alert("Keyword copied!");
-    }
-
-    function forwardProduct(asin) {
-      alert("Forwarding product: " + asin);
-    }
-
-    // ========= Image Modal =========
-    function openModal(imgUrl) {
+    // ===== Image Modal =====
+    function openImageModal(imgUrl) {
       const modal = document.getElementById("imgModal");
       const modalImg = document.getElementById("modalImg");
       modalImg.src = imgUrl;
       modal.style.display = "block";
     }
 
-    function closeModal(e) {
+    function closeImageModal(e) {
       const modal = document.getElementById("imgModal");
       modal.style.display = "none";
-      const modalImg = document.getElementById("modalImg");
-      modalImg.src = "";
+      document.getElementById("modalImg").src = "";
     }
 
-    // ========= XSS safety =========
+    // ===== Forward Modal =====
+    function openForwardModal(product) {
+      CURRENT_FORWARD_PRODUCT = product;
+
+      const text = buildForwardText(product);
+      document.getElementById("forwardPreview").textContent = text;
+
+      // WhatsApp：wa.me/message 通常不支持预填 text 参数
+      // 做法：先复制文案，再打开你的 WhatsApp 联系入口
+      const waBtn = document.getElementById("forwardWA");
+      waBtn.href = WA_CONTACT;
+      waBtn.onclick = (e) => {
+        e.preventDefault();
+        copyText(text)
+          .then(() => window.open(WA_CONTACT, "_blank"))
+          .catch(() => window.open(WA_CONTACT, "_blank"));
+      };
+
+      // Telegram：用 share/url 预填 text + url
+      const shareUrl = product.link ? product.link : "";
+      const tgShare = "https://t.me/share/url?url=" + encodeURIComponent(shareUrl) + "&text=" + encodeURIComponent(text);
+      const tgBtn = document.getElementById("forwardTG");
+      tgBtn.href = tgShare;
+
+      // Email：mailto 预填
+      const subject = `[${product.market || ""}] ${product.title || "Product"}`.trim();
+      const mailBtn = document.getElementById("forwardMail");
+      mailBtn.href =
+        "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
+        "?subject=" + encodeURIComponent(subject) +
+        "&body=" + encodeURIComponent(text);
+
+      document.getElementById("forwardModal").style.display = "block";
+    }
+
+    function closeForwardModal(e) {
+      document.getElementById("forwardModal").style.display = "none";
+      CURRENT_FORWARD_PRODUCT = null;
+    }
+
+    function buildForwardText(p) {
+      const lines = [];
+      if (p.title) lines.push(p.title);
+      lines.push(`Market: ${p.market || "-"}`);
+      if (p.price) lines.push(`Price: ${p.price}`);
+      if (p.commission) lines.push(`Commission: ${p.commission}`);
+      if (p.asin) lines.push(`ASIN: ${p.asin}`);
+      if (p.link) lines.push(`Link: ${p.link}`);
+      if (p.remark) lines.push(`Remark: ${p.remark}`);
+      return lines.join("\n");
+    }
+
+    function copyForwardText() {
+      const text = document.getElementById("forwardPreview").textContent || "";
+      if (!text) return;
+      copyText(text)
+        .then(() => alert("Forward text copied!"))
+        .catch(() => alert("Copy failed"));
+    }
+
+    // ===== XSS safety =====
     function escapeHtml(str) {
       return String(str)
         .replaceAll("&", "&amp;")
@@ -461,22 +563,19 @@
         .replaceAll("'", "&#39;");
     }
     function escapeAttr(str) {
-      // 属性中使用，基本同 escapeHtml
       return escapeHtml(str);
     }
 
-    // ========= Init =========
-    window.onload = function() {
+    // ===== Init =====
+    window.onload = function () {
       const savedCountry = localStorage.getItem("selectedCountry");
       document.getElementById("countrySelect").value = savedCountry || "UK";
 
-      // 第一次加载
       fetchProductData(false);
 
-      // 每 15 分钟刷新一次（前端显示用；真正的更新靠 GitHub Actions）
+      // 前端每 15 分钟刷新一次展示；真正的数据更新由 GitHub Actions 每 15 分钟生成 products.json
       setInterval(() => fetchProductData(false), 15 * 60 * 1000);
     };
   </script>
 </body>
 </html>
-
