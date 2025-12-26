@@ -394,9 +394,17 @@
       waBtn.href = waUrl;
 
       // Telegram：share/url 预填 text + url（官方方式）
-      const shareUrl = product.link ? product.link : "";
-      const tgShare = "https://t.me/share/url?url=" + encodeURIComponent(shareUrl) + "&text=" + encodeURIComponent(text);
-      document.getElementById("forwardTG").href = tgShare;
+      // Telegram：直接进入与你的账号私聊，而不是“选择联系人”
+// 方式：先复制文案，再打开你的私聊链接
+const tgBtn = document.getElementById("forwardTG");
+tgBtn.href = "https://t.me/" + TG_USERNAME;
+tgBtn.onclick = (e) => {
+  e.preventDefault();
+  copyText(text)
+    .then(() => window.open("https://t.me/" + TG_USERNAME, "_blank"))
+    .catch(() => window.open("https://t.me/" + TG_USERNAME, "_blank"));
+};
+
 
       // Email：mailto 预填
       const subject = `[${product.market || ""}] ${product.title || "Product"}`.trim();
@@ -504,4 +512,5 @@
   </script>
 </body>
 </html>
+
 
