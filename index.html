@@ -41,15 +41,16 @@
       display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
     }
     .notice-title{ font-weight:800; }
-    .notice-body{ margin-top:10px; line-height:1.6; font-size:14px; color:#111827; }
+    .notice-body{ margin-top:10px; line-height:1.65; font-size:14px; color:#111827; text-align:left; }
     .notice-body ol{ margin:8px 0 10px 18px; padding:0; }
     .notice-body ul{ margin:8px 0 10px 18px; padding:0; }
     .notice-body li{ margin:6px 0; }
+    .notice-muted{ color:#6b7280; font-size:13px; }
 
     .product-table-container{ width:100%; overflow-x:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
-    .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:980px; }
+    .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:1040px; }
 
-    /* ✅ 数据居中显示（表头+内容） */
+    /* 居中显示（表头+内容） */
     .product-table th,.product-table td{
       padding:12px;
       text-align:center;
@@ -58,14 +59,29 @@
       font-size:.9em;
       word-break:break-word;
     }
-    .product-table th{ background:#f4f4f4; position:sticky; top:0; z-index:1; }
-
-    /* ✅ 图片放大到原来约2倍 + 居中 */
-    .img-cell{
-      display:flex;
-      justify-content:center;
-      align-items:center;
+    .product-table th{
+      background:#f4f4f4;
+      position:sticky; top:0; z-index:1;
+      white-space:nowrap;         /* ✅ 表头不再随意换行 */
     }
+
+    /* ✅ 价格列最小宽度，避免“Discou / t Price”这种断字 */
+    .col-price, .col-commission{ min-width:120px; }
+
+    /* ✅ 可点击排序的表头样式 */
+    .sortable{
+      cursor:pointer;
+      user-select:none;
+    }
+    .sort-ind{
+      display:inline-block;
+      margin-left:6px;
+      font-size:12px;
+      color:#6b7280;
+    }
+
+    /* 图片放大 + 居中 */
+    .img-cell{ display:flex; justify-content:center; align-items:center; }
     .product-image{
       width:120px; height:120px; object-fit:contain; cursor:pointer; border-radius:10px;
       border:1px solid #e5e7eb; background:#fff;
@@ -87,7 +103,8 @@
       .product-image{ width:96px; height:96px; }
       .product-title{ font-size:.9em; }
       .contact-text{ font-size:.95em; }
-      .product-table{ min-width:920px; }
+      .product-table{ min-width:980px; }
+      .col-price, .col-commission{ min-width:110px; }
     }
 
     .modal{
@@ -95,7 +112,7 @@
       background:rgba(0,0,0,.7); padding-top:60px;
     }
     .modal-inner{
-      width:90%; max-width:900px; margin:0 auto; position:relative; background:#fff; border-radius:14px; padding:14px;
+      width:90%; max-width:560px; margin:0 auto; position:relative; background:#fff; border-radius:14px; padding:14px;
       box-shadow:0 10px 30px rgba(0,0,0,.15);
     }
     .close{
@@ -131,7 +148,7 @@
     <div class="contact-actions">
       <a class="contact-btn" href="https://wa.me/8615778673666" target="_blank" rel="noopener">WhatsApp</a>
       <a class="contact-btn" href="https://t.me/dalemyrong" target="_blank" rel="noopener">Telegram</a>
-      <a class="contact-btn" href="mailto:info@dalemy.top">Email</a>
+      <a class="contact-btn" href="mailto:info@dalemy.top" target="_blank" rel="noopener">Email</a>
     </div>
   </header>
 
@@ -147,6 +164,7 @@
       <button class="btn" onclick="fetchProductData(true)" id="refreshBtn">Refresh</button>
     </div>
 
+    <!-- ✅ Notice：现在保证能渲染内容 -->
     <div class="notice-box" id="noticeBox">
       <div class="notice-head">
         <div class="notice-title" id="noticeTitle">Important Notice</div>
@@ -166,8 +184,14 @@
             <th id="thKeyword">Keyword</th>
             <th id="thStore">Store</th>
             <th id="thRemark">Remark</th>
-            <th id="thPrice">Discount Price</th>
-            <th id="thCommission">Commission</th>
+
+            <!-- ✅ 这两列可点击排序：大→小；再点恢复默认 -->
+            <th id="thPrice" class="col-price sortable" onclick="toggleSort('price')">
+              Discount Price <span class="sort-ind" id="indPrice"></span>
+            </th>
+            <th id="thCommission" class="col-commission sortable" onclick="toggleSort('commission')">
+              Commission <span class="sort-ind" id="indCommission"></span>
+            </th>
           </tr>
         </thead>
         <tbody id="product-table-body"></tbody>
@@ -180,7 +204,7 @@
 
   <!-- Forward Modal -->
   <div id="forwardModal" class="modal" onclick="closeForwardModal(event)">
-    <div class="modal-inner" style="max-width:560px;" onclick="event.stopPropagation()">
+    <div class="modal-inner" onclick="event.stopPropagation()">
       <span class="close" onclick="closeForwardModal(event)">&times;</span>
 
       <h3 style="margin:0 0 10px 0;" id="forwardTitle">Forward Product</h3>
@@ -207,19 +231,20 @@
     const WA_PHONE = "8615778673666";
     const TG_USERNAME = "dalemyrong";
     const EMAIL_CONTACT = "info@dalemy.top";
-
-    // ✅ 产品中转页
     const PRODUCT_PAGE_PATH = "/product-list/product.html";
 
     // ===== State =====
-    let ALL_PRODUCTS = [];
+    let ALL_PRODUCTS = [];          // 原始顺序（默认顺序）
     let LAST_LOADED_AT = null;
     let CURRENT_FORWARD_PRODUCT = null;
+
+    // ✅ 排序状态：null=默认；'price'/'commission'=按该列从大到小
+    let SORT_KEY = null;
 
     // ===== Language mapping =====
     const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
 
-    // ===== i18n UI（保持你现有版本，下面只是兜底）=====
+    // ===== i18n UI（你的原版可更完整；这里做兜底，不会影响你已有的）=====
     const UI_I18N = window.UI_I18N || {
       en: {
         pageTitle: "Product List",
@@ -231,7 +256,135 @@
         forwardSub: "Choose a channel. A new window will open; this page will stay here.",
         copy: "Copy Text",
         th: { action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword", store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission" },
-        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" }
+        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" },
+        noticeTitle: "Important Notice",
+        noticeHide: "Hide",
+        noticeShow: "Show"
+      }
+    };
+
+    // ✅ Notice 多语言模板（你要求的注意事项）
+    const NOTICE_I18N = {
+      en: {
+        title: "Important Notice",
+        html: `
+          <div class="notice-muted">
+            Shopping flow: select product → contact me → I confirm availability → search by keyword and place order →
+            verify product and store name → send order screenshot for registration + provide your PayPal account →
+            after receiving the product, leave review/feedback as required → send screenshot to me →
+            refund time is usually 3–7 days.
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: please submit the review and send me the screenshot after Amazon shows it.</li>
+            <li><b>No Review</b>: after receiving the product, just send me product photos.</li>
+            <li><b>Need Feedback</b>: leave 5-star store feedback (no review text required), send screenshot.</li>
+            <li><b>Need Rating</b>: leave 5-star product rating (no text required), send screenshot.</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b>: 0 means full refund. If it shows an amount, it is the out-of-pocket cost (deducted from refund).</li>
+            <li><b>Commission</b>: extra commission paid after the review/requirements are completed.</li>
+          </ul>
+        `
+      },
+      de: {
+        title: "Wichtiger Hinweis",
+        html: `
+          <div class="notice-muted">
+            Ablauf: Produkt wählen → mich kontaktieren → Verfügbarkeit bestätigen → nach Keyword suchen & bestellen →
+            Produkt/Shop prüfen → Bestell-Screenshot senden + PayPal angeben → nach Erhalt wie gefordert bewerten →
+            Screenshot senden → Rückzahlung ca. 3–7 Tage.
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: Bitte Review abgeben und Screenshot senden, sobald es bei Amazon sichtbar ist.</li>
+            <li><b>No Review</b>: Nach Erhalt bitte nur Produktfotos senden.</li>
+            <li><b>Need Feedback</b>: 5-Sterne Shop-Feedback (ohne Text), Screenshot senden.</li>
+            <li><b>Need Rating</b>: 5-Sterne Produktbewertung (ohne Text), Screenshot senden.</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b>: 0 = volle Erstattung. Betrag = Eigenanteil (wird von Rückzahlung abgezogen).</li>
+            <li><b>Commission</b>: Extra-Provision nach Abschluss der Anforderungen.</li>
+          </ul>
+        `
+      },
+      fr: {
+        title: "Avis important",
+        html: `
+          <div class="notice-muted">
+            Procédure: choisir un produit → me contacter → confirmation → rechercher via le mot-clé et commander →
+            vérifier produit et boutique → envoyer capture de commande + PayPal → après réception, faire l’action demandée →
+            envoyer capture → remboursement env. 3–7 jours.
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b> : soumettre l’avis et m’envoyer la capture une fois affiché sur Amazon.</li>
+            <li><b>No Review</b> : après réception, envoyez simplement des photos du produit.</li>
+            <li><b>Need Feedback</b> : laisser un feedback boutique 5 étoiles (sans texte), envoyer capture.</li>
+            <li><b>Need Rating</b> : noter le produit 5 étoiles (sans texte), envoyer capture.</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b> : 0 = remboursement intégral. Montant = part à payer (déduite du remboursement).</li>
+            <li><b>Commission</b> : commission supplémentaire après validation.</li>
+          </ul>
+        `
+      },
+      it: {
+        title: "Avviso importante",
+        html: `
+          <div class="notice-muted">
+            Procedura: scegli prodotto → contattami → conferma → cerca per keyword e ordina →
+            verifica prodotto e negozio → invia screenshot ordine + PayPal → dopo la consegna, esegui quanto richiesto →
+            invia screenshot → rimborso ~3–7 giorni.
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: invia la recensione e mandami lo screenshot quando appare su Amazon.</li>
+            <li><b>No Review</b>: dopo la consegna, invia solo foto del prodotto.</li>
+            <li><b>Need Feedback</b>: feedback negozio 5 stelle (senza testo), invia screenshot.</li>
+            <li><b>Need Rating</b>: valutazione prodotto 5 stelle (senza testo), invia screenshot.</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b>: 0 = rimborso totale. Importo = costo a tuo carico (dedotto dal rimborso).</li>
+            <li><b>Commission</b>: commissione extra dopo il completamento.</li>
+          </ul>
+        `
+      },
+      es: {
+        title: "Aviso importante",
+        html: `
+          <div class="notice-muted">
+            Flujo: elegir producto → contactarme → confirmo disponibilidad → buscar por keyword y comprar →
+            verificar producto y tienda → enviar captura del pedido + PayPal → tras recibir, completar lo requerido →
+            enviar captura → reembolso ~3–7 días.
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: envía la reseña y la captura cuando Amazon la muestre.</li>
+            <li><b>No Review</b>: al recibir, envía fotos del producto.</li>
+            <li><b>Need Feedback</b>: feedback 5 estrellas a la tienda (sin texto), enviar captura.</li>
+            <li><b>Need Rating</b>: valoración 5 estrellas al producto (sin texto), enviar captura.</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b>: 0 = reembolso total. Monto = gasto propio (se descuenta del reembolso).</li>
+            <li><b>Commission</b>: comisión extra tras completar.</li>
+          </ul>
+        `
+      },
+      ja: {
+        title: "重要なお知らせ",
+        html: `
+          <div class="notice-muted">
+            手順：商品を選ぶ → 私に連絡 → 可否を確認 → キーワードで検索して注文 →
+            商品/店舗名を確認 → 注文スクショ＋PayPalを送る → 受取後、指示どおり対応 →
+            スクショ送付 → 返金は通常3〜7日。
+          </div>
+          <ol>
+            <li><b>Need Text Review / Need Image Review / Need Video Review</b>：レビュー投稿後、Amazonに表示されたスクショを送ってください。</li>
+            <li><b>No Review</b>：受取後、商品の写真だけ送ってください。</li>
+            <li><b>Need Feedback</b>：店舗へ★5フィードバック（文章不要）、スクショ送付。</li>
+            <li><b>Need Rating</b>：商品へ★5評価（文章不要）、スクショ送付。</li>
+          </ol>
+          <ul>
+            <li><b>Discount Price</b>：0は全額返金。金額がある場合は自己負担（返金時に差し引き）。</li>
+            <li><b>Commission</b>：条件達成後に追加で支払われる報酬。</li>
+          </ul>
+        `
       }
     };
 
@@ -250,7 +403,15 @@
       return new Intl.NumberFormat("en", opts).format(num);
     }
 
-    // ===== UI helpers =====
+    // 用于排序：把金额字符串转成 number（£0 / €20 / 0 / 空 都能处理）
+    function toNumberMoney(v) {
+      const raw = String(v ?? "").trim();
+      if (!raw) return -Infinity; // 空值排最后
+      const num = Number(raw.replace(/[^\d.-]/g, ""));
+      return Number.isFinite(num) ? num : -Infinity;
+    }
+
+    // ===== Helpers =====
     function setStatus(text, meta = "") {
       document.getElementById("statusBadge").textContent = text;
       document.getElementById("statusMeta").textContent = meta;
@@ -268,67 +429,47 @@
       return UI_I18N[currentLang()] || UI_I18N.en;
     }
 
-    function applyI18n() {
+    // ✅ Notice 渲染（修复你“信息丢失不显示”的问题）
+    function renderNotice() {
+      const lang = currentLang();
       const T = tUI();
-      document.getElementById("pageTitle").textContent = T.pageTitle;
-      document.getElementById("productsTitle").textContent = T.productsTitle;
-      document.getElementById("contactText").textContent = T.contactText;
-      document.getElementById("refreshBtn").textContent = T.refresh;
-      document.getElementById("translateHint").textContent = T.translatingHint;
+      const N = NOTICE_I18N[lang] || NOTICE_I18N.en;
 
-      document.getElementById("forwardTitle").textContent = T.forwardTitle;
-      document.getElementById("forwardSub").textContent = T.forwardSub;
-      document.getElementById("copyBtn").textContent = T.copy;
+      document.getElementById("noticeTitle").textContent = (N.title || T.noticeTitle || "Important Notice");
 
-      document.getElementById("thAction").textContent = T.th.action;
-      document.getElementById("thMarket").textContent = T.th.market;
-      document.getElementById("thImage").textContent = T.th.image;
-      document.getElementById("thTitle").textContent = T.th.title;
-      document.getElementById("thKeyword").textContent = T.th.keyword;
-      document.getElementById("thStore").textContent = T.th.store;
-      document.getElementById("thRemark").textContent = T.th.remark;
-      document.getElementById("thPrice").textContent = T.th.price;
-      document.getElementById("thCommission").textContent = T.th.commission;
-
-      if (typeof renderNotice === "function") renderNotice();
-    }
-
-    // ===== Notice toggle（若你已有，可直接保留你原版）=====
-    function toggleNotice() {
+      const hidden = localStorage.getItem("notice_hidden") === "1";
       const contentEl = document.getElementById("noticeContent");
-      const isHidden = contentEl.style.display === "none";
-      contentEl.style.display = isHidden ? "block" : "none";
-      localStorage.setItem("notice_hidden", isHidden ? "0" : "1");
-      document.getElementById("noticeToggleBtn").textContent = isHidden ? "Hide" : "Show";
-      if (typeof renderNotice === "function") renderNotice();
+      contentEl.style.display = hidden ? "none" : "block";
+      document.getElementById("noticeToggleBtn").textContent = hidden
+        ? (T.noticeShow || "Show")
+        : (T.noticeHide || "Hide");
+
+      // 这里把 notice 内容真正写进去
+      contentEl.innerHTML = N.html || NOTICE_I18N.en.html;
     }
 
-    // ===== Translation（保持你现有逻辑，这里仅兜底）=====
+    function toggleNotice() {
+      const isHidden = localStorage.getItem("notice_hidden") === "1";
+      localStorage.setItem("notice_hidden", isHidden ? "0" : "1");
+      renderNotice();
+    }
+
+    // ===== Translation（保留你现在的逻辑；这里仅兜底不破坏）=====
     const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
     const translateCache = loadCache();
-
-    function loadCache() {
-      try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); }
-      catch { return {}; }
-    }
-    function saveCache() {
-      try { localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(translateCache)); } catch {}
-    }
+    function loadCache() { try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); } catch { return {}; } }
+    function saveCache() { try { localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(translateCache)); } catch {} }
     function cacheKey(lang, text) { return lang + "||" + text; }
     function hasChinese(text) { return /[\u4e00-\u9fff]/.test(text || ""); }
     function isBadTranslation(out) {
       const sRaw = (out || "").toString().trim();
       if (!sRaw) return true;
       const s = sRaw.toUpperCase();
-      if (s.includes("INVALID")) return true;
-      if (s.includes("ERROR")) return true;
-      if (s.includes("LANGPAIR")) return true;
-      if (s.includes("RFC3066")) return true;
-      if (s.includes("SUPPORTED")) return true;
-      if (s.includes("EXAMPLE:")) return true;
-      if (s.startsWith("'AUTO'")) return true;
-      if (s.startsWith("AUTO ")) return true;
-      return false;
+      return (
+        s.includes("INVALID") || s.includes("ERROR") || s.includes("LANGPAIR") ||
+        s.includes("RFC3066") || s.includes("SUPPORTED") || s.includes("EXAMPLE:") ||
+        s.startsWith("'AUTO'") || s.startsWith("AUTO ")
+      );
     }
     function purgeBadCacheEntries() {
       let changed = false;
@@ -337,7 +478,6 @@
       }
       if (changed) saveCache();
     }
-
     const LIBRE_INSTANCES = [
       "https://libretranslate.de/translate",
       "https://translate.terraprint.co/translate",
@@ -381,7 +521,6 @@
       }
       return q;
     }
-
     let translateQueue = [];
     let translating = false;
     function enqueueTranslate(task) { translateQueue.push(task); if (!translating) runTranslateQueue(); }
@@ -394,27 +533,22 @@
       }
       translating = false;
     }
-
     async function translateVisibleRemarks() {
       const lang = currentLang();
       const visibleRows = Array.from(document.querySelectorAll(".product-row"))
         .filter(r => r.style.display !== "none");
-
       visibleRows.forEach(row => {
         const remarkEl = row.querySelector(".remark-text");
         const loadingEl = row.querySelector(".remark-loading");
         if (!remarkEl) return;
-
         const orig = (remarkEl.dataset.remarkOriginal || "").trim();
         if (!orig) return;
-
         if (!hasChinese(orig) || lang === "en") {
           remarkEl.textContent = orig;
           remarkEl.title = orig;
           if (loadingEl) loadingEl.textContent = "";
           return;
         }
-
         const key = cacheKey(lang, orig);
         if (translateCache[key] && !isBadTranslation(translateCache[key])) {
           remarkEl.textContent = translateCache[key];
@@ -422,7 +556,6 @@
           if (loadingEl) loadingEl.textContent = "";
           return;
         }
-
         if (loadingEl) loadingEl.textContent = "Translating…";
         remarkEl.textContent = orig;
         remarkEl.title = orig;
@@ -436,7 +569,7 @@
       });
     }
 
-    // ✅ 新增：打开产品中转页（新窗口）
+    // ✅ 新窗口打开产品中转页
     function openProductPage(product) {
       const market = (product.market || "").trim().toUpperCase();
       const asin = (product.asin || "").trim();
@@ -448,6 +581,35 @@
         + "&link=" + encodeURIComponent(link || "");
 
       window.open(url, "_blank", "noopener");
+    }
+
+    // ===== i18n apply =====
+    function applyI18n() {
+      const T = tUI();
+      document.getElementById("pageTitle").textContent = T.pageTitle;
+      document.getElementById("productsTitle").textContent = T.productsTitle;
+      document.getElementById("contactText").textContent = T.contactText;
+      document.getElementById("refreshBtn").textContent = T.refresh;
+      document.getElementById("translateHint").textContent = T.translatingHint;
+
+      document.getElementById("forwardTitle").textContent = T.forwardTitle;
+      document.getElementById("forwardSub").textContent = T.forwardSub;
+      document.getElementById("copyBtn").textContent = T.copy;
+
+      document.getElementById("thAction").textContent = T.th.action;
+      document.getElementById("thMarket").textContent = T.th.market;
+      document.getElementById("thImage").textContent = T.th.image;
+      document.getElementById("thTitle").textContent = T.th.title;
+      document.getElementById("thKeyword").textContent = T.th.keyword;
+      document.getElementById("thStore").textContent = T.th.store;
+      document.getElementById("thRemark").textContent = T.th.remark;
+
+      // 注意：这两列文字我们保留“Discount Price / Commission”英文也行
+      // 如果你已有各语言表头，也可改成 T.th.price / T.th.commission
+      // document.getElementById("thPrice").childNodes[0].textContent = T.th.price;
+
+      renderNotice();
+      refreshSortIndicators();
     }
 
     // ===== Fetch JSON =====
@@ -463,11 +625,11 @@
         .then(products => {
           if (!Array.isArray(products)) throw new Error("products.json is not an array");
 
-          ALL_PRODUCTS = products;
+          // 保留原顺序（默认顺序）
+          ALL_PRODUCTS = products.map((p, idx) => ({ ...p, __idx: idx }));
           LAST_LOADED_AT = new Date();
 
-          displayProducts(ALL_PRODUCTS);
-          filterProductsByCountry();
+          renderTable();
           applyI18n();
           translateVisibleRemarks();
 
@@ -482,7 +644,53 @@
         });
     }
 
-    // ===== Render =====
+    // ===== Sorting =====
+    function toggleSort(key) {
+      // 点击同一个 key：开/关（大到小 / 默认）
+      if (SORT_KEY === key) SORT_KEY = null;
+      else SORT_KEY = key;
+
+      renderTable();
+      refreshSortIndicators();
+      translateVisibleRemarks();
+    }
+
+    function refreshSortIndicators() {
+      const indPrice = document.getElementById("indPrice");
+      const indCommission = document.getElementById("indCommission");
+
+      indPrice.textContent = (SORT_KEY === "price") ? "▼" : "";
+      indCommission.textContent = (SORT_KEY === "commission") ? "▼" : "";
+    }
+
+    // ===== Render table with filter + sort =====
+    function getVisibleProducts() {
+      const m = currentMarket();
+      let list = ALL_PRODUCTS.filter(p => String(p.market || "").trim().toUpperCase() === m);
+
+      if (SORT_KEY === "price") {
+        list = [...list].sort((a, b) => toNumberMoney(b.price) - toNumberMoney(a.price));
+      } else if (SORT_KEY === "commission") {
+        list = [...list].sort((a, b) => toNumberMoney(b.commission) - toNumberMoney(a.commission));
+      } else {
+        // 默认顺序：按原始 idx
+        list = [...list].sort((a, b) => (a.__idx ?? 0) - (b.__idx ?? 0));
+      }
+      return list;
+    }
+
+    function renderTable() {
+      const visibleList = getVisibleProducts();
+      displayProducts(visibleList);
+
+      if (LAST_LOADED_AT) {
+        setStatus(
+          "Loaded",
+          `${visibleList.length}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`
+        );
+      }
+    }
+
     function displayProducts(products) {
       const tbody = document.getElementById("product-table-body");
       tbody.innerHTML = "";
@@ -490,9 +698,8 @@
       products.forEach(product => {
         const row = document.createElement("tr");
         row.classList.add("product-row");
-        const market = (product.market || "").trim().toUpperCase();
-        row.setAttribute("data-market", market);
 
+        const market = (product.market || "").trim().toUpperCase();
         const safeTitle = escapeHtml(product.title || "");
         const safeKeyword = escapeHtml(product.keyword || "");
         const safeStore = escapeHtml(product.store || "");
@@ -544,7 +751,8 @@
         image_url: product.image_url || "",
         price: product.price || "",
         commission: product.commission || "",
-        status: product.status || ""
+        status: product.status || "",
+        __idx: product.__idx ?? 0
       };
       return JSON.stringify(safe)
         .replaceAll("&", "\\u0026")
@@ -552,33 +760,13 @@
         .replaceAll(">", "\\u003e");
     }
 
-    // ===== Filter =====
-    function filterProductsByCountry() {
-      const selectedCountry = currentMarket();
-      const rows = document.querySelectorAll(".product-row");
-
-      let visibleCount = 0;
-      rows.forEach(row => {
-        const market = row.getAttribute("data-market");
-        if (market === selectedCountry) {
-          row.style.display = "";
-          visibleCount++;
-        } else {
-          row.style.display = "none";
-        }
-      });
-
-      localStorage.setItem("selectedCountry", selectedCountry);
-
-      if (LAST_LOADED_AT) {
-        setStatus("Loaded", `${visibleCount}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`);
-      }
-    }
-
+    // ===== Market change =====
     function onMarketChange() {
-      filterProductsByCountry();
+      SORT_KEY = null; // 切换国家时默认恢复默认顺序（你也可以删除这行）
+      renderTable();
       applyI18n();
       translateVisibleRemarks();
+      localStorage.setItem("selectedCountry", currentMarket());
     }
 
     // ===== Copy =====
@@ -586,7 +774,6 @@
       if (!text) return;
       copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
     }
-
     function copyText(text) {
       if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
       return new Promise((resolve, reject) => {
@@ -620,13 +807,11 @@
       const text = buildForwardTextLocalized(product, T.labels, market, remarkDisplay);
       document.getElementById("forwardPreview").textContent = text;
 
-      // WhatsApp：新窗口打开
       const waUrl = "https://wa.me/" + WA_PHONE + "?text=" + encodeURIComponent(text);
       const waBtn = document.getElementById("forwardWA");
       waBtn.href = waUrl;
       waBtn.onclick = (e) => { e.preventDefault(); window.open(waUrl, "_blank", "noopener"); };
 
-      // Telegram：新窗口打开（先复制再打开）
       const tgUrl = "https://t.me/" + TG_USERNAME;
       const tgBtn = document.getElementById("forwardTG");
       tgBtn.href = tgUrl;
@@ -635,7 +820,6 @@
         copyText(text).finally(() => window.open(tgUrl, "_blank", "noopener"));
       };
 
-      // Email：新窗口打开
       const subject = `[${market}] ${product.title || "Product"}`.trim();
       const mailUrl =
         "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
@@ -664,7 +848,6 @@
 
       const lines = [];
       if (p.title) lines.push(p.title);
-
       lines.push(`${labels.market}: ${market || "-"}`);
 
       const rawPrice = String(p.price ?? "").trim();
@@ -706,7 +889,7 @@
       applyI18n();
       fetchProductData(false);
 
-      // ✅ 自动更新改成 10 分钟一次
+      // 10分钟同步一次
       setInterval(() => fetchProductData(false), 10 * 60 * 1000);
     };
   </script>
