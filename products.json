@@ -1,6 +1,19 @@
 [
   {
     "market": "US",
+    "asin": "B0F3X93FVQ",
+    "title": "美国浴缸喷口",
+    "keyword": "gold tub spout",
+    "store": "fropohome",
+    "remark": "Need Text Review",
+    "link": "https://amzn.to/497vEUK",
+    "image_url": "https://m.media-amazon.com/images/I/51O8WaJQkhL._AC_SX679_.jpg",
+    "price": "0.00",
+    "commission": "0.00",
+    "status": "active"
+  },
+  {
+    "market": "US",
     "asin": "B0F8H6H3FG",
     "title": "美国通风导流器",
     "keyword": "vent deflector",
@@ -398,19 +411,6 @@
     "remark": "Need Text Review",
     "link": "https://amzn.to/4aWF1Jw",
     "image_url": "https://m.media-amazon.com/images/I/51iSOAxJRxL._AC_SX569_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "US",
-    "asin": "B0F3X93FVQ",
-    "title": "美国浴缸喷口",
-    "keyword": "gold tub spout",
-    "store": "fropohome",
-    "remark": "Need Text Review",
-    "link": "https://amzn.to/497vEUK",
-    "image_url": "https://m.media-amazon.com/images/I/51O8WaJQkhL._AC_SX679_.jpg",
     "price": "0.00",
     "commission": "0.00",
     "status": "active"
