@@ -793,13 +793,17 @@
   if (p.title) lines.push(p.title); // 商品标题
   lines.push(`${labels.market}: ${market || "-"}`); // 市场
 
-  // 只有在折扣价格不为0时才显示
+  // 只在Discount Price不为0时才显示
   const rawPrice = String(p.price ?? "").trim();
-  if (rawPrice !== "0" && rawPrice !== "") lines.push(`Discount Price: ${price || rawPrice}`);
+  if (rawPrice !== "0" && rawPrice !== "") {
+    lines.push(`Discount Price: ${price || rawPrice}`);
+  }
 
-  // 只有在佣金不为0时才显示
+  // 只在Commission不为0时才显示
   const rawCommission = String(p.commission ?? "").trim();
-  if (rawCommission !== "0" && rawCommission !== "") lines.push(`Commission: ${commission || rawCommission}`);
+  if (rawCommission !== "0" && rawCommission !== "") {
+    lines.push(`Commission: ${commission || rawCommission}`);
+  }
 
   // 显示Keyword和Store
   if (p.keyword) lines.push(`Keyword: ${p.keyword}`);
@@ -811,11 +815,9 @@
   // 只有在有链接时才显示
   if (p.link) lines.push(`Link: ${p.link}`);
 
-  // 删除ASIN部分，确保ASIN不被复制
-  // (没有必要添加ASIN信息)
-
   return lines.join("\n");
 }
+
 
     function copyForwardText() {
       const text = document.getElementById("forwardPreview").textContent || "";
@@ -853,6 +855,7 @@
   </script>
 </body>
 </html>
+
 
 
 
