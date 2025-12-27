@@ -800,15 +800,22 @@
   const rawCommission = String(p.commission ?? "").trim();
   if (rawCommission !== "0" && rawCommission !== "") lines.push(`Commission: ${commission || rawCommission}`);
 
-  if (p.keyword) lines.push(`Keyword: ${p.keyword}`); // 显示Keyword
-  if (p.store) lines.push(`Store: ${p.store}`); // 显示Store
-  if (remarkDisplay) lines.push(`Remark: ${remarkDisplay}`); // 显示Remark
+  // 显示Keyword和Store
+  if (p.keyword) lines.push(`Keyword: ${p.keyword}`); 
+  if (p.store) lines.push(`Store: ${p.store}`);
 
-  if (p.link) lines.push(`link:${p.link}`); // 链接字段
-  if (p.asin) lines.push(`ASIN: ${p.asin}`); // ASIN
+  // 显示Remark
+  if (remarkDisplay) lines.push(`Remark: ${remarkDisplay}`);
+
+  // 只在有链接时才显示
+  if (p.link) lines.push(`link:${p.link}`); 
+
+  // 只有在ASIN有值时才显示
+  if (p.asin && p.asin.trim() !== "") lines.push(`ASIN: ${p.asin}`);
 
   return lines.join("\n");
 }
+
 
 
 
@@ -848,4 +855,5 @@
   </script>
 </body>
 </html>
+
 
