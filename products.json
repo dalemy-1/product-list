@@ -53,19 +53,6 @@
   },
   {
     "market": "US",
-    "asin": "B0C5MJ15CY",
-    "title": "美国电动预卷机",
-    "keyword": "pre roll machine",
-    "store": "Cyt1tone",
-    "remark": "Need Text Review",
-    "link": "https://amzn.to/4pIHADx",
-    "image_url": "https://m.media-amazon.com/images/I/71JWshkp+WL._AC_SX679_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "US",
     "asin": "5407182953",
     "title": "美国沃尔玛按摩器",
     "keyword": "Electric Cordless Hair Scalp Massager",
@@ -183,19 +170,6 @@
   },
   {
     "market": "US",
-    "asin": "B0FN46ZC2H",
-    "title": "美国线轴免评点星",
-    "keyword": "orange pla filament",
-    "store": "Best Home Decor Factory",
-    "remark": "Need Rating\nSold by Best Home Decor Factory",
-    "link": "https://amzn.to/4pN0cCt",
-    "image_url": "https://m.media-amazon.com/images/I/71cI2RA+ObL._AC_SL1500_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "US",
     "asin": "B0DLKZKDSR",
     "title": "美国内衣收纳包税",
     "keyword": "underwear drawer organizer",
@@ -203,6 +177,19 @@
     "remark": "Color: Grey  Size: Set of 3\n100% refund including taxes",
     "link": "https://amzn.to/45dIrE0",
     "image_url": "https://m.media-amazon.com/images/I/71AYLKVu1ZL._AC_SX679_PIbundle-3,TopRight,0,0_SH20_.jpg",
+    "price": "0.00",
+    "commission": "0.00",
+    "status": "active"
+  },
+  {
+    "market": "US",
+    "asin": "B0FN46ZC2H",
+    "title": "美国线轴免评点星",
+    "keyword": "orange pla filament",
+    "store": "Best Home Decor Factory",
+    "remark": "Need Rating\nSold by Best Home Decor Factory",
+    "link": "https://amzn.to/4pN0cCt",
+    "image_url": "https://m.media-amazon.com/images/I/71cI2RA+ObL._AC_SL1500_.jpg",
     "price": "0.00",
     "commission": "0.00",
     "status": "active"
