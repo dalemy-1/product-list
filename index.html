@@ -785,24 +785,30 @@
     }
 
     function buildForwardTextLocalized(p, labels, market, remarkDisplay) {
-      const price = formatMoneyByMarket(p.price, market);
-      const commission = formatMoneyByMarket(p.commission, market);
+  // 格式化折扣价格和佣金
+  const price = formatMoneyByMarket(p.price, market);
+  const commission = formatMoneyByMarket(p.commission, market);
 
-      const lines = [];
-      if (p.title) lines.push(p.title);
-      lines.push(`${labels.market}: ${market || "-"}`);
+  // 构建文本
+  const lines = [];
+  if (p.title) lines.push(p.title); // 商品标题
+  lines.push(`${labels.market}: ${market || "-"}`); // 市场
 
-      const rawPrice = String(p.price ?? "").trim();
-      if (rawPrice !== "") lines.push(`${labels.price}: ${price || rawPrice}`);
+  // 只在有折扣价格时才显示
+  const rawPrice = String(p.price ?? "").trim();
+  if (rawPrice !== "0" && rawPrice !== "") lines.push(`Discount Price: ${price || rawPrice}`);
 
-      const rawCommission = String(p.commission ?? "").trim();
-      if (rawCommission !== "") lines.push(`${labels.commission}: ${commission || rawCommission}`);
+  // 只在佣金有值时才显示
+  const rawCommission = String(p.commission ?? "").trim();
+  if (rawCommission !== "0" && rawCommission !== "") lines.push(`Commission: ${commission || rawCommission}`);
 
-      if (p.asin) lines.push(`${labels.asin}: ${p.asin}`);
-      if (p.link) lines.push(`${labels.link}: ${p.link}`);
-      if (remarkDisplay) lines.push(`${labels.remark}: ${remarkDisplay}`);
-      return lines.join("\n");
-    }
+  if (p.asin) lines.push(`${labels.asin}: ${p.asin}`); // ASIN
+  if (p.link) lines.push(`Link: ${p.link}`); // 链接
+  if (remarkDisplay) lines.push(`Remark: ${remarkDisplay}`); // Remark
+
+  return lines.join("\n");
+}
+
 
     function copyForwardText() {
       const text = document.getElementById("forwardPreview").textContent || "";
@@ -840,4 +846,5 @@
   </script>
 </body>
 </html>
+
 
