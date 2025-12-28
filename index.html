@@ -17,6 +17,7 @@
   }
   *{ box-sizing:border-box; }
   body{ margin:0; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
+
   header{
     background:linear-gradient(135deg,#0f172a,#020617);
     color:#fff; text-align:center;
@@ -33,12 +34,41 @@
   .search-input{ min-width:min(420px, 90vw); }
   .wrap{ max-width:1200px; margin:14px auto 26px; padding:0 12px; }
 
+  /* ===== Homepage Hero (risk-control friendly) ===== */
+  .hero{
+    margin-top:12px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px 14px;
+    line-height:1.6;
+  }
+  .hero .title{
+    font-size:14px;
+    font-weight:900;
+    color:#111827;
+    margin:0 0 6px 0;
+  }
+  .hero .desc{
+    font-size:12px;
+    color:#374151;
+    margin:0;
+  }
+  .hero .desc strong{ font-weight:900; }
+  .hero .hint{
+    margin-top:8px;
+    font-size:12px;
+    color:#4b5563;
+  }
+  .hero .hint a{ color:#2563eb; text-decoration:none; }
+
   .compliance{
     background:#fff;
     border:1px solid var(--border);
     border-radius:14px;
     padding:12px 14px;
     line-height:1.55;
+    margin-top:12px;
   }
   .compliance .row{
     display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:flex-start;
@@ -133,7 +163,7 @@
   }
   .product-image:hover{ transform:scale(1.02); }
 
-  /* 你要求：不展示 ASIN 行，但复制仍包含 ASIN */
+  /* 不展示 ASIN 行，但复制仍包含 ASIN */
   .asin{ display:none !important; }
 
   /* advisor 更短 */
@@ -227,6 +257,20 @@
 </header>
 
 <div class="wrap">
+
+  <!-- ✅ Homepage Hero (inserted) -->
+  <section class="hero" aria-label="Independent product reference">
+    <div class="title">Independent product reference</div>
+    <p class="desc">
+      This website lists product identifiers and references to items available on Amazon.
+      <strong>All purchases are completed on Amazon</strong> via the product pages.
+      We do not sell products directly and do not process orders or payments.
+    </p>
+    <div class="hint">
+      Need help identifying an item? Use <strong>Contact / Copy</strong> to copy Title / ASIN / Market and reach us for general assistance.
+      See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
+    </div>
+  </section>
 
   <div class="compliance">
     <div class="row">
@@ -373,13 +417,7 @@
     document.getElementById("emptyHint").style.display = show ? "block" : "none";
   }
 
-  /* ========= Image URL resolver (maximize display rate) =========
-     Strategy:
-      1) try direct original
-      2) if page is HTTPS and image is HTTP -> try https upgrade
-      3) if still fails -> try HTTPS proxy (weserv)
-      4) finally -> placeholder
-  */
+  /* ========= Image URL resolver (maximize display rate) ========= */
   function isHttpsPage(){
     return String(location.protocol || "").toLowerCase() === "https:";
   }
@@ -387,16 +425,12 @@
     return String(url || "").replace(/^http:\/\//i, "https://");
   }
   function toWeserv(url){
-    // weserv expects url without scheme in most stable form
-    // Example: https://images.weserv.nl/?url=example.com/image.jpg
     const cleaned = String(url || "").replace(/^https?:\/\//i, "");
     return "https://images.weserv.nl/?url=" + encodeURIComponent(cleaned);
   }
   function initialImageUrl(raw){
     const u = normalizeUrl(raw);
     if (!u) return PLACEHOLDER_DATA_URI;
-    // If HTTPS page + HTTP image -> keep original first (some browsers block anyway),
-    // but we will auto retry via onerror to upgraded https and proxy.
     return u;
   }
 
@@ -410,27 +444,23 @@
         return;
       }
 
-      // Stage 0 -> Stage 1: try https upgrade (most important for your case)
       if (stage === 0){
         imgEl.dataset.stage = "1";
         if (isHttpsPage() && /^http:\/\//i.test(original)){
           imgEl.src = upgradeToHttps(original);
           return;
         }
-        // if already https, go next
         imgEl.src = toWeserv(original);
         imgEl.dataset.stage = "2";
         return;
       }
 
-      // Stage 1 -> Stage 2: try proxy
       if (stage === 1){
         imgEl.dataset.stage = "2";
         imgEl.src = toWeserv(original);
         return;
       }
 
-      // Stage 2 -> Stage 3: placeholder
       imgEl.dataset.stage = "3";
       imgEl.src = PLACEHOLDER_DATA_URI;
       imgEl.removeAttribute("srcset");
@@ -498,7 +528,6 @@
   }
 
   /* ========= advisor (short) copy generator ========= */
-
   function hash32(str){
     const s = String(str || "");
     let h = 2166136261;
@@ -541,7 +570,6 @@
     const bucket = classifyProduct(p);
 
     const HEADS = ["Why we picked it", "Advisor note", "Quick guidance", "Selection note"];
-
     const OPENERS = [
       "Picked for a practical fit rather than hype.",
       "Selected as a sensible baseline option.",
