@@ -307,7 +307,7 @@
     </p>
     <div class="hint">
       Need help identifying an item? Use <strong>Contact / Copy</strong> to copy Title / ASIN / Market and reach us for general assistance.
-      See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
+      See <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </section>
 
@@ -318,7 +318,7 @@
     </div>
     <div class="small">
       Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. We provide independent product references and redirect you to Amazon for purchase.
-      See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
+      See <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </div>
 
@@ -399,15 +399,17 @@
     <div><strong>Independence:</strong> This site is not an official Amazon website and is not endorsed by Amazon.</div>
     <div><strong>Links:</strong> “View on Amazon” redirects to Amazon. Amazon may use cookies for tracking qualifying purchases.</div>
     <div style="margin-top:6px;">
-      <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> ·
-      <a href="./terms.html" target="_blank" rel="noopener">Terms</a>
+      <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> ·
+      <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
     </div>
     <div style="margin-top:6px;">© 2025 ama.omino.top</div>
   </div>
 </footer>
 
 <script>
-  const PRODUCTS_JSON_PATH = "./products.json";
+  // IMPORTANT:
+  // - Use absolute path so /p/{market}/{asin} pages can still load products.json (avoid /p/.../products.json 404)
+  const PRODUCTS_JSON_PATH = "/products.json";
 
   const WA_PHONE = "8615778673666";
   const TG_USERNAME = "dalemyrong";
@@ -418,7 +420,7 @@
   let ALL_PRODUCTS = [];
   let LAST_LOADED_AT = null;
   let CURRENT_CONTACT_PRODUCT = null;
-  let LAST_LOAD_ERROR = ""; // <— distinguish fetch failure vs empty market
+  let LAST_LOAD_ERROR = ""; // distinguish fetch failure vs empty market
 
   /* ========= Placeholder (only used after multiple retries) ========= */
   const PLACEHOLDER_SVG = `
@@ -656,16 +658,17 @@
       .then(list => {
         if (!Array.isArray(list)) throw new Error("products.json is not an array");
 
+        // IMPORTANT:
+        // Your products.json uses field name: "market" (not "market")
+        // Keep compatibility for any variants anyway.
         ALL_PRODUCTS = list.map((p, idx) => ({
-  // 兼容：market / market / Market
-  market: String(p.market ?? p.market ?? p.Market ?? "").trim().toUpperCase(),
-  asin: String(p.asin ?? p.ASIN ?? "").trim(),
-  title: String(p.title ?? p.Title ?? "").trim(),
-  link: String(p.link ?? p.Link ?? "").trim(),
-  image_url: String(p.image_url ?? p.image_url ?? p.Image ?? "").trim(),
-  __idx: idx
-}));
-
+          market: String(p.market ?? p.market ?? p.Market ?? "").trim().toUpperCase(),
+          asin: String(p.asin ?? p.ASIN ?? "").trim(),
+          title: String(p.title ?? p.Title ?? "").trim(),
+          link: String(p.link ?? p.Link ?? "").trim(),
+          image_url: String(p.image_url ?? p.image_url ?? p.Image ?? "").trim(),
+          __idx: idx
+        }));
 
         annotateAsinKeys(ALL_PRODUCTS);
 
@@ -1144,4 +1147,3 @@
 </script>
 </body>
 </html>
-
