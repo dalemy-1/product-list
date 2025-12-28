@@ -41,20 +41,6 @@
       background:#fff; color:#111827;
     }
 
-    /* Notice box */
-    .notice-box{
-      background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:10px 0;
-    }
-    .notice-head{
-      display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
-    }
-    .notice-title{ font-weight:800; }
-    .notice-body{ margin-top:10px; line-height:1.65; font-size:14px; color:#111827; text-align:left; }
-    .notice-body ol{ margin:8px 0 10px 18px; padding:0; }
-    .notice-body ul{ margin:8px 0 10px 18px; padding:0; }
-    .notice-body li{ margin:6px 0; }
-    .notice-muted{ color:#6b7280; font-size:13px; }
-
     .product-table-container{ width:100%; overflow-x:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
     .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:1040px; }
 
@@ -169,13 +155,6 @@
 </div>
 <button class="btn" id="refreshBtn" onclick="fetchProductData(true)">Refresh</button>
 </div>
-<div class="notice-box" id="noticeBox">
-<div class="notice-head">
-<div class="notice-title" id="noticeTitle">Important Notice</div>
-<button class="btn" id="noticeToggleBtn" onclick="toggleNotice()" style="background:#374151;">Hide</button>
-</div>
-<div class="notice-body" id="noticeContent"></div>
-</div>
 <div class="product-table-container">
 <table class="product-table">
 <thead>
@@ -257,35 +236,7 @@
         statusLabel: "Status",
         th: { action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword", store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission" },
         labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" },
-        noticeTitle: "Important Notice",
-        noticeHide: "Hide",
-        noticeShow: "Show",
         all: "All"
-      }
-    };
-
-    // ===== Notice i18n (keep your content) =====
-    const NOTICE_I18N = {
-      en: {
-        title: "Important Notice",
-        html: `
-          <div class="notice-muted">
-            Shopping flow: select product → contact me → I confirm availability → search by keyword and place order →
-            verify product and store name → send order screenshot for registration + provide your PayPal account →
-            after receiving the product, leave review/feedback as required → send screenshot to me →
-            refund time is usually 3–7 days.
-          </div>
-          <ol>
-            <li><b>Need Text Review / Need Image Review / Need Video Review</b>: please submit the review and send me the screenshot after Amazon shows it.</li>
-            <li><b>No Review</b>: after receiving the product, just send me product photos.</li>
-            <li><b>Need Feedback</b>: leave 5-star store feedback (no review text required), send screenshot.</li>
-            <li><b>Need Rating</b>: leave 5-star product rating (no text required), send screenshot.</li>
-          </ol>
-          <ul>
-            <li><b>Discount Price</b>: 0 means full refund. If it shows an amount, it is the out-of-pocket cost (deducted from refund).</li>
-            <li><b>Commission</b>: extra commission paid after the review/requirements are completed.</li>
-          </ul>
-        `
       }
     };
 
@@ -328,28 +279,6 @@
       return UI_I18N[currentLang()] || UI_I18N.en;
     }
 
-    // ===== Notice =====
-    function renderNotice() {
-      const lang = currentLang();
-      const T = tUI();
-      const N = NOTICE_I18N[lang] || NOTICE_I18N.en;
-
-      document.getElementById("noticeTitle").textContent = (N.title || T.noticeTitle || "Important Notice");
-
-      const hidden = localStorage.getItem("notice_hidden") === "1";
-      const contentEl = document.getElementById("noticeContent");
-      contentEl.style.display = hidden ? "none" : "block";
-      document.getElementById("noticeToggleBtn").textContent = hidden
-        ? (T.noticeShow || "Show")
-        : (T.noticeHide || "Hide");
-
-      contentEl.innerHTML = (N.html || NOTICE_I18N.en.html);
-    }
-    function toggleNotice() {
-      const isHidden = localStorage.getItem("notice_hidden") === "1";
-      localStorage.setItem("notice_hidden", isHidden ? "0" : "1");
-      renderNotice();
-    }
 
     // ===== Translation (as-is) =====
     const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
@@ -545,7 +474,6 @@
       document.getElementById("thStore").textContent = T.th.store;
       document.getElementById("thRemark").textContent = T.th.remark;
 
-      renderNotice();
       refreshSortIndicators();
     }
 
@@ -860,8 +788,6 @@
   </script>
 </body>
 </html>
-
-
 
 
 
