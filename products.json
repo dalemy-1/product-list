@@ -26,19 +26,6 @@
     "status": "active"
   },
   {
-    "market": "UK",
-    "asin": "B0FBDNJ47Z",
-    "title": "英国小双人床垫",
-    "keyword": "small double mattresses",
-    "store": "Azelectronics limited",
-    "remark": "Need Text Review,Specify non-selectable",
-    "link": "https://amzn.to/4sha0Xa",
-    "image_url": "https://m.media-amazon.com/images/I/81XAxy51MsL._AC_SX679_.jpg",
-    "price": "25.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
     "market": "US",
     "asin": "B08GPYDN6P",
     "title": "美国水泵",
