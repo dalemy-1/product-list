@@ -138,8 +138,23 @@
   }
   .product-image:hover{ transform:scale(1.02); }
 
-  /* ✅ 不展示 ASIN 行（你要求删除页面展示） */
+  /* ✅ 不展示 ASIN 行（页面隐藏） */
   .asin{ display:none !important; }
+
+  /* ✅ 自动生成的中立说明 */
+  .product-notes{
+    width:100%;
+    max-width:360px;
+    margin-top:6px;
+    padding:8px 10px;
+    background:#f9fafb;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    font-size:12px;
+    color:#374151;
+    line-height:1.55;
+  }
+  .product-notes strong{ font-weight:800; }
 
   .actions{
     width:100%;
@@ -410,6 +425,97 @@
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  /* ===================== Auto Product Notes (neutral) ===================== */
+  function classifyProduct(p){
+    const t = String(p?.title || "").toLowerCase();
+    const has = (...kw) => kw.some(k => t.includes(k));
+
+    if (has("printer", "filament", "pla", "abs", "3d")) return "3d_printing";
+    if (has("hoodie", "shirt", "t-shirt", "jacket", "sweater", "dress", "cap", "hat", "pants", "shoes", "sock")) return "apparel";
+    if (has("cream", "serum", "lotion", "shampoo", "soap", "skincare", "cosmetic")) return "personal_care";
+    if (has("supplement", "vitamin", "capsule", "tablet")) return "supplements";
+    if (has("charger", "adapter", "usb", "hdmi", "cable", "battery", "router", "camera", "monitor", "keyboard", "mouse", "earbuds", "headphone")) return "electronics";
+    if (has("toy", "game", "kids", "child")) return "kids_toys";
+    if (has("kitchen", "pan", "pot", "knife", "cook", "coffee", "mug")) return "kitchen";
+    if (has("replacement", "refill", "filter", "cartridge", "spare")) return "replacement";
+    if (has("custom", "personalized", "engrave", "print", "your text")) return "customized";
+    return "general";
+  }
+
+  function buildProductNotes(p){
+    const bucket = classifyProduct(p);
+
+    const base = {
+      head: "Product notes",
+      line3: "On Amazon: review variants, seller, and fulfillment details."
+    };
+
+    const notesByBucket = {
+      electronics: {
+        line1: "Suitable for: everyday use and common setups.",
+        line2: "Check before buying: compatibility (model/region), size, and power requirements."
+      },
+      kitchen: {
+        line1: "Suitable for: home and daily kitchen use.",
+        line2: "Check before buying: dimensions, material, and care instructions."
+      },
+      apparel: {
+        line1: "Suitable for: everyday wear and gifting.",
+        line2: "Check before buying: size chart, color/variant selection, and material."
+      },
+      personal_care: {
+        line1: "Suitable for: personal care routines.",
+        line2: "Check before buying: ingredients, usage directions, and personal sensitivity considerations."
+      },
+      supplements: {
+        line1: "Suitable for: general wellness consideration (if applicable).",
+        line2: "Check before buying: label details, serving size, and any personal restrictions."
+      },
+      kids_toys: {
+        line1: "Suitable for: family use and gifting.",
+        line2: "Check before buying: age suitability, small parts, and safety notes."
+      },
+      replacement: {
+        line1: "Suitable for: regular replacement or refill use.",
+        line2: "Check before buying: model fitment, quantity, and specifications."
+      },
+      customized: {
+        line1: "Suitable for: gifting or personalization needs.",
+        line2: "Check before buying: customization options, variant selection, and return policy."
+      },
+      "3d_printing": {
+        line1: "Suitable for: 3D printing projects and hobby use.",
+        line2: "Check before buying: filament type, diameter, and printer compatibility."
+      },
+      general: {
+        line1: "Suitable for: common use cases depending on your needs.",
+        line2: "Check before buying: key specs, size/fit, and selected variant."
+      }
+    };
+
+    const pick = notesByBucket[bucket] || notesByBucket.general;
+
+    return {
+      head: base.head,
+      line1: pick.line1,
+      line2: pick.line2,
+      line3: base.line3
+    };
+  }
+
+  function productNotesHtml(p){
+    const n = buildProductNotes(p);
+    return `
+      <div class="product-notes">
+        <strong>${escapeHtml(n.head)}</strong><br>
+        • ${escapeHtml(n.line1)}<br>
+        • ${escapeHtml(n.line2)}<br>
+        • ${escapeHtml(n.line3)}
+      </div>
+    `;
+  }
+  /* ===================== Auto Product Notes end ===================== */
+
   function renderGrid(){
     const grid = document.getElementById("productGrid");
     const items = getVisibleProducts();
@@ -438,8 +544,10 @@
             </div>
           `}
 
-          <!-- ✅ 仍保留元素(不展示)，防止其它逻辑依赖；展示已通过 CSS 隐藏 -->
+          <!-- ✅ 元素保留但隐藏（CSS display:none），不在页面展示 -->
           <div class="asin" title="${escapeHtml(asin)}">ASIN: ${escapeHtml(asin || "-")}</div>
+
+          ${productNotesHtml(p)}
 
           <div class="actions">
             ${viewAmazon}
@@ -502,7 +610,7 @@
   function openContactModal(product){
     CURRENT_CONTACT_PRODUCT = product;
 
-    const previewText = buildCopyInfo(product); // 预览：含 ASIN（不含链接）
+    const previewText = buildCopyInfo(product);
     document.getElementById("contactPreview").textContent = previewText;
 
     const contactText = buildContactText(product);
@@ -536,6 +644,12 @@
   }
 
   function closeContactModal(){
+    document.getElementById("contactModal").style.display = "none";
+    CURRENT_CONTACT_PRODUCT = null;
+  }
+
+  function closeContactModal(event){
+    // allow click backdrop close; keep button close too
     document.getElementById("contactModal").style.display = "none";
     CURRENT_CONTACT_PRODUCT = null;
   }
