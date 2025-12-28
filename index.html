@@ -236,7 +236,7 @@
   footer .inner{ max-width:1200px; margin:0 auto; font-size:12px; color:#374151; line-height:1.7; }
   footer a{ color:#2563eb; text-decoration:none; }
 
-  /* ====== Detail Page (keep UI consistent) ====== */
+  /* ====== Detail Page (keep UI consistent: reuse existing card styles) ====== */
   .detail-wrap{ margin-top:14px; }
   .detail-top{
     display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
@@ -418,8 +418,9 @@
   let ALL_PRODUCTS = [];
   let LAST_LOADED_AT = null;
   let CURRENT_CONTACT_PRODUCT = null;
+  let LAST_LOAD_ERROR = ""; // <— distinguish fetch failure vs empty market
 
-  /* ========= Placeholder ========= */
+  /* ========= Placeholder (only used after multiple retries) ========= */
   const PLACEHOLDER_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
       <defs>
@@ -456,11 +457,47 @@
     document.getElementById("statusBadge").textContent = text;
     document.getElementById("statusMeta").textContent = meta;
   }
-  function showEmpty(show){
-    document.getElementById("emptyHint").style.display = show ? "block" : "none";
+
+  function setEmptyMessage(html){
+    const el = document.getElementById("emptyHint");
+    el.innerHTML = html;
   }
 
-  /* ========= Image URL resolver ========= */
+  function showEmptyByState(visibleCount){
+    const el = document.getElementById("emptyHint");
+
+    // Case 1: fetch failed
+    if (LAST_LOAD_ERROR){
+      setEmptyMessage(`Failed to load <code>products.json</code>. ${escapeHtml(LAST_LOAD_ERROR)}`);
+      el.style.display = "block";
+      return;
+    }
+
+    // Case 2: loaded but empty dataset
+    if (!ALL_PRODUCTS || ALL_PRODUCTS.length === 0){
+      setEmptyMessage(`No products loaded. Ensure <code>products.json</code> is available in this folder.`);
+      el.style.display = "block";
+      return;
+    }
+
+    // Case 3: loaded, but market/search yields 0
+    if (visibleCount === 0){
+      const m = currentMarket();
+      const q = (document.getElementById("searchInput").value || "").trim();
+      if (q){
+        setEmptyMessage(`No results for <b>${escapeHtml(m)}</b> with current search.`);
+      }else{
+        setEmptyMessage(`No products for <b>${escapeHtml(m)}</b> yet.`);
+      }
+      el.style.display = "block";
+      return;
+    }
+
+    // Case 4: normal
+    el.style.display = "none";
+  }
+
+  /* ========= Image URL resolver (maximize display rate) ========= */
   function isHttpsPage(){
     return String(location.protocol || "").toLowerCase() === "https:";
   }
@@ -512,7 +549,7 @@
     }
   }
 
-  /* ========= SPA fallback restore ========= */
+  /* ========= GitHub Pages SPA fallback restore (custom domain) ========= */
   function restoreSpaPathIfAny(){
     try{
       const restore = sessionStorage.getItem("__spa_redirect_path__");
@@ -608,6 +645,7 @@
   /* ========= Data ========= */
   function fetchProductData(manual=false){
     const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
+    LAST_LOAD_ERROR = "";
     setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
 
     fetch(url, { cache:"no-store" })
@@ -619,7 +657,7 @@
         if (!Array.isArray(list)) throw new Error("products.json is not an array");
 
         ALL_PRODUCTS = list.map((p, idx) => ({
-          market: String(p.market || "").trim().toUpperCase(),
+          market: String(p.market || "").trim().toUpperCase(),  // <— market field
           asin: String(p.asin || "").trim(),
           title: String(p.title || "").trim(),
           link: String(p.link || "").trim(),
@@ -632,17 +670,21 @@
         LAST_LOADED_AT = new Date();
         renderByRoute();
 
+        // status for list view only (detail has its own title)
         const route = parseRoute();
         if (route.type === "list"){
-          setStatus("Loaded", `${ALL_PRODUCTS.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
-          showEmpty(ALL_PRODUCTS.length === 0);
+          const m = currentMarket();
+          const visible = getVisibleProducts().length;
+          setStatus("Loaded", `${visible}/${ALL_PRODUCTS.length} visible · ${m} · ${LAST_LOADED_AT.toLocaleString()}`);
         }
       })
       .catch(err => {
         console.error(err);
-        setStatus("Load failed", err.message);
-        showEmpty(true);
-        if (manual) alert("Failed to load products.json.\n\n" + err.message);
+        LAST_LOAD_ERROR = err.message || String(err);
+        setStatus("Load failed", LAST_LOAD_ERROR);
+        // Let renderGrid/showEmptyByState render the right empty message
+        renderByRoute();
+        if (manual) alert("Failed to load products.json.\n\n" + LAST_LOAD_ERROR);
       });
   }
 
@@ -821,7 +863,6 @@
     document.getElementById("statusBar").style.display = "none";
     document.getElementById("howtoBlock").style.display = "none";
     document.getElementById("productGrid").style.display = "none";
-    document.getElementById("emptyHint").style.display = "none";
     document.getElementById("detailPage").style.display = "block";
     document.getElementById("footer").style.display = "block";
   }
@@ -988,9 +1029,12 @@
       grid.appendChild(card);
     });
 
-    showEmpty(items.length === 0);
-    if (LAST_LOADED_AT){
-      setStatus("Loaded", `${items.length}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`);
+    // Empty-state is now accurate:
+    showEmptyByState(items.length);
+
+    // Keep status bar meaningful
+    if (LAST_LOADED_AT && !LAST_LOAD_ERROR){
+      setStatus("Loaded", `${items.length}/${ALL_PRODUCTS.length} visible · ${currentMarket()} · ${LAST_LOADED_AT.toLocaleString()}`);
     }
   }
 
