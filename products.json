@@ -26,19 +26,6 @@
     "status": "active"
   },
   {
-    "market": "UK",
-    "asin": "B0FS6XTZBZ",
-    "title": "英国干花",
-    "keyword": "140PCS Dried Pressed Flowers Set",
-    "store": "zhilingDingHua",
-    "remark": "Need Text Review",
-    "link": "https://www.amazon.co.uk/dp/B0FS6XTZBZ",
-    "image_url": "https://m.media-amazon.com/images/I/91LQofaCxuL._AC_SX569_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
     "market": "US",
     "asin": "B0FRG5FWMM",
     "title": "美国夹子图评",
@@ -79,19 +66,6 @@
   },
   {
     "market": "UK",
-    "asin": "B0FWJWYJM3",
-    "title": "英国干花",
-    "keyword": "Dried Flowers for Cakes",
-    "store": "zhilingDingHua",
-    "remark": "Need Text Review",
-    "link": "https://amzn.to/3MWOLtm",
-    "image_url": "https://m.media-amazon.com/images/I/71+Y1OZdL+L._AC_SX569_.jpg",
-    "price": "0.00",
-    "commission": "0.00",
-    "status": "active"
-  },
-  {
-    "market": "UK",
     "asin": "B0FGXL4D4K",
     "title": "英国充电宝",
     "keyword": "Xiaocodou Power Bank",
@@ -99,6 +73,19 @@
     "remark": "Need Text Review\nSold by Guangzhou Lintang Trading Co., Ltd.",
     "link": "https://amzn.to/4aV7Tli",
     "image_url": "https://m.media-amazon.com/images/I/61Njd-RC0BL._AC_SX679_.jpg",
+    "price": "0.00",
+    "commission": "0.00",
+    "status": "active"
+  },
+  {
+    "market": "UK",
+    "asin": "B0FWJWYJM3",
+    "title": "英国干花",
+    "keyword": "Dried Flowers for Cakes",
+    "store": "zhilingDingHua",
+    "remark": "Need Text Review",
+    "link": "https://amzn.to/3MWOLtm",
+    "image_url": "https://m.media-amazon.com/images/I/71+Y1OZdL+L._AC_SX569_.jpg",
     "price": "0.00",
     "commission": "0.00",
     "status": "active"
