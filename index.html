@@ -5,793 +5,495 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Product List</title>
 <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f4f4f9; color:#111827; }
-    header { background:#111827; color:#fff; text-align:center; padding:20px 0; border-bottom:5px solid #fff; }
-    header h1 { font-size:2em; font-weight:bold; margin:0 0 10px 0; }
-    .country-select{
-      margin:10px; font-size:1.05em; padding:6px 10px; background:#fff; color:#111827;
-      border:1px solid #ddd; border-radius:6px; outline:none;
-    }
-    .contact-text{ font-size:1.05em; margin-top:10px; color:#fff; line-height:1.5; }
-    .contact-actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; padding:0 12px; }
-    .contact-btn{
-      display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
-      background:#fff; color:#111827; text-decoration:none; border:1px solid rgba(255,255,255,.35);
-      font-weight:600; font-size:14px;
-    }
-    .contact-btn:hover{ opacity:.92; }
+  :root{
+    --bg:#f4f4f9;
+    --card:#ffffff;
+    --border:#e5e7eb;
+    --text:#111827;
+    --muted:#6b7280;
+    --dark:#111827;
+  }
 
-    section#product-list{ max-width:1200px; margin:18px auto 30px; padding:0 12px; }
-    section#product-list h2{ margin:0 0 10px 0; font-size:20px; }
+  body{ font-family: Arial, sans-serif; margin:0; padding:0; background:var(--bg); color:var(--text); }
+  header{ background:linear-gradient(135deg,#0f172a,#020617); color:#fff; text-align:center; padding:20px 0; border-bottom:5px solid #fff; }
+  header h1{ font-size:2em; font-weight:800; margin:0 0 10px 0; letter-spacing:.3px; }
+  .country-select{
+    margin:10px; font-size:1.05em; padding:6px 10px; background:#fff; color:#111827;
+    border:1px solid #ddd; border-radius:8px; outline:none;
+  }
 
-    .status-bar{
-      display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
-      padding:10px 12px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:10px;
-    }
-    .status-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .badge{ padding:4px 10px; border-radius:999px; border:1px solid #e5e7eb; background:#f9fafb; font-size:12px; color:#374151; }
-    .muted{ color:#6b7280; font-size:12px; }
-    .hint-sub{ font-size:12px; color:#6b7280; margin-left:8px; }
+  section#product-list{ max-width:1200px; margin:18px auto 30px; padding:0 12px; }
+  section#product-list h2{ margin:0 0 10px 0; font-size:20px; }
 
-    /* Status filter */
-    .filter-wrap{ display:flex; align-items:center; gap:8px; }
-    .filter-label{ font-size:12px; color:#374151; font-weight:700; }
-    .filter-select{
-      font-size:12px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:10px; outline:none;
-      background:#fff; color:#111827;
-    }
+  .status-bar{
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:10px 12px; background:var(--card); border:1px solid var(--border); border-radius:12px; margin-bottom:10px;
+  }
+  .status-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .badge{ padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:#f9fafb; font-size:12px; color:#374151; }
+  .muted{ color:var(--muted); font-size:12px; }
 
-    .product-table-container{ width:100%; overflow-x:auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
-    .product-table{ width:100%; border-collapse:collapse; table-layout:auto; min-width:1040px; }
+  .requirements-box{
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; margin:10px 0 14px;
+  }
+  .requirements-box h3{ margin:0 0 8px 0; font-size:16px; }
+  .requirements-box ul{ margin:0 0 0 18px; padding:0; line-height:1.6; }
 
-    /* centered */
-    .product-table th,.product-table td{
-      padding:12px;
-      text-align:center;
-      border-bottom:1px solid #eee;
-      vertical-align:middle;
-      font-size:.9em;
-      word-break:break-word;
-    }
-    .product-table th{
-      background:#f4f4f4;
-      position:sticky; top:0; z-index:1;
-      white-space:nowrap;
-    }
+  .btn{
+    padding:8px 12px; border-radius:10px; border:1px solid var(--border);
+    background:var(--dark); color:#fff; cursor:pointer; font-weight:700; font-size:13px; white-space:nowrap;
+  }
+  .btn:hover{ opacity:.92; }
 
-    .col-price, .col-commission{ min-width:120px; }
+  /* ================== 九宫格 Grid ================== */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:14px;
+  }
+  @media (max-width: 980px){
+    .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px){
+    .grid{ grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  }
 
-    .sortable{
-      cursor:pointer;
-      user-select:none;
-    }
-    .sort-ind{
-      display:inline-block;
-      margin-left:6px;
-      font-size:12px;
-      color:#6b7280;
-    }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.04);
+  }
 
-    .img-cell{ display:flex; justify-content:center; align-items:center; }
-    .product-image{
-      width:120px; height:120px; object-fit:contain; cursor:pointer; border-radius:10px;
-      border:1px solid #e5e7eb; background:#fff;
-      transition: transform .12s ease;
-    }
-    .product-image:hover{ transform: scale(1.02); }
+  .image-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
 
-    .product-title{ font-weight:bold; font-size:.95em; line-height:1.35; }
+  /* 图片占主要空间 */
+  .product-image{
+    width:100%;
+    max-width:320px;
+    aspect-ratio: 1 / 1;
+    object-fit:contain;
+    cursor:pointer;
+    border-radius:14px;
+    border:1px solid var(--border);
+    background:#fff;
+    transition: transform .12s ease;
+    display:block;
+  }
+  .product-image:hover{ transform: scale(1.02); }
 
-    .btn{
-      padding:8px 10px; border-radius:10px; border:1px solid #e5e7eb;
-      background:#111827; color:#fff; cursor:pointer; font-weight:600; font-size:13px; white-space:nowrap;
-    }
-    .btn:hover{ opacity:.92; }
+  .asin-under{
+    font-weight:800;
+    font-size:12px;
+    letter-spacing:.35px;
+    color:var(--text);
+    background:#f3f4f6;
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:4px 10px;
+    max-width: 100%;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
-    @media (max-width:768px){
-      header h1{ font-size:1.5em; }
-      .product-table th,.product-table td{ padding:8px; font-size:.8em; }
-      .product-image{ width:96px; height:96px; }
-      .product-title{ font-size:.9em; }
-      .contact-text{ font-size:.95em; }
-      .product-table{ min-width:980px; }
-      .col-price, .col-commission{ min-width:110px; }
-    }
+  /* ✅ Forward 放在图片下方 */
+  .forward-wrap{
+    width:100%;
+    display:flex;
+    justify-content:center;
+  }
+  .forward-btn{
+    width: min(220px, 100%);
+  }
 
-    .modal{
-      display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
-      background:rgba(0,0,0,.7); padding-top:60px;
-    }
-    .modal-inner{
-      width:90%; max-width:560px; margin:0 auto; position:relative; background:#fff; border-radius:14px; padding:14px;
-      box-shadow:0 10px 30px rgba(0,0,0,.15);
-    }
-    .close{
-      position:absolute; top:10px; right:14px; color:#111827; font-size:26px; font-weight:bold;
-      cursor:pointer; user-select:none; line-height:1;
-    }
-    .close:hover{ opacity:.7; }
+  .empty{
+    margin-top:14px;
+    padding:16px 12px;
+    color:var(--muted);
+    font-size:14px;
+    text-align:center;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+  }
 
-    .empty{ padding:16px 12px; color:#6b7280; font-size:14px; text-align:center; }
-    .remark-loading{ font-size:12px; color:#6b7280; margin-top:4px; }
+  /* ================== Modal ================== */
+  .modal{
+    display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%;
+    background:rgba(0,0,0,.7); padding-top:60px;
+  }
+  .modal-inner{
+    width:90%; max-width:560px; margin:0 auto; position:relative; background:#fff; border-radius:14px; padding:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.15);
+  }
+  .close{
+    position:absolute; top:10px; right:14px; color:#111827; font-size:26px; font-weight:bold;
+    cursor:pointer; user-select:none; line-height:1;
+  }
+  .close:hover{ opacity:.7; }
+
+  .contact-btn{
+    display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px;
+    background:#fff; color:#111827; text-decoration:none; border:1px solid var(--border);
+    font-weight:700; font-size:14px;
+  }
+  .contact-btn:hover{ opacity:.92; }
 </style>
 </head>
+
 <body>
 <header>
-<h1 id="pageTitle">Product List</h1>
-<select class="country-select" id="countrySelect" onchange="onMarketChange()">
-<option value="UK">UK</option>
-<option value="US">US</option>
-<option value="DE">Germany</option>
-<option value="FR">France</option>
-<option value="IT">Italy</option>
-<option value="ES">Spain</option>
-<option value="CA">Canada</option>
-<option value="JP">Japan</option>
-</select>
-<div class="contact-text" id="contactText">
-      For inquiries, you can contact us via WhatsApp, Telegram, or Email:
-    </div>
-<div class="contact-actions">
-<a class="contact-btn" href="https://wa.me/8615778673666" rel="noopener" target="_blank">WhatsApp</a>
-<a class="contact-btn" href="https://t.me/dalemyrong" rel="noopener" target="_blank">Telegram</a>
-<a class="contact-btn" href="mailto:info@dalemy.top" rel="noopener" target="_blank">Email</a>
-</div>
+  <h1 id="pageTitle">Product List</h1>
+  <select class="country-select" id="countrySelect" onchange="onMarketChange()">
+    <option value="UK">UK</option>
+    <option value="US">US</option>
+    <option value="DE">Germany</option>
+    <option value="FR">France</option>
+    <option value="IT">Italy</option>
+    <option value="ES">Spain</option>
+    <option value="CA">Canada</option>
+    <option value="JP">Japan</option>
+  </select>
 </header>
+
 <section id="product-list">
-<h2 id="productsTitle">Products</h2>
-<div class="status-bar">
-<div class="status-left">
-<span class="badge" id="statusBadge">Loading…</span>
-<span class="muted" id="statusMeta"></span>
-<span class="hint-sub" id="translateHint"></span>
-<!-- ✅ Status filter -->
-<div class="filter-wrap" style="margin-left:8px;">
-<span class="filter-label" id="statusFilterLabel">Status</span>
-<select class="filter-select" id="statusSelect" onchange="onStatusChange()">
-<option value="__all__">All</option>
-</select>
-</div>
-</div>
-<button class="btn" id="refreshBtn" onclick="fetchProductData(true)">Refresh</button>
-</div>
-<div class="product-table-container">
-<table class="product-table">
-<thead>
-<tr>
-<th id="thAction">Action</th>
-<th id="thMarket">Market</th>
-<th id="thImage">Image</th>
-<th id="thTitle">Title</th>
-<th id="thKeyword">Keyword</th>
-<th id="thStore">Store</th>
-<th id="thRemark">Remark</th>
-<th class="col-price sortable" id="thPrice" onclick="toggleSort('price')">
-              Discount Price <span class="sort-ind" id="indPrice"></span>
-</th>
-<th class="col-commission sortable" id="thCommission" onclick="toggleSort('commission')">
-              Commission <span class="sort-ind" id="indCommission"></span>
-</th>
-</tr>
-</thead>
-<tbody id="product-table-body"></tbody>
-</table>
-<div class="empty" id="emptyHint" style="display:none;">
-        No products loaded. If this is your first time, run GitHub Actions once to generate products.json.
-      </div>
-</div>
+  <h2 id="productsTitle">Products</h2>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="badge" id="statusBadge">Loading…</span>
+      <span class="muted" id="statusMeta"></span>
+    </div>
+    <button class="btn" id="refreshBtn" onclick="fetchProductData(true)">Refresh</button>
+  </div>
+
+  <div class="requirements-box" id="requirementsBox">
+    <h3 id="requirementsTitle">Amazon Associates Requirements</h3>
+    <ul id="requirementsList">
+      <li>As an Amazon Associate, we earn from qualifying purchases.</li>
+      <li>All product links must direct to Amazon product pages.</li>
+      <li>We do not request or accept paid reviews or incentives.</li>
+      <li>Buyers should follow Amazon policies and terms when purchasing.</li>
+      <li>For inquiries, please use the Forward button on each product to consult.</li>
+    </ul>
+  </div>
+
+  <!-- ✅ 九宫格容器 -->
+  <div class="grid" id="productGrid"></div>
+
+  <div class="empty" id="emptyHint" style="display:none;">
+    No products loaded. If this is your first time, run GitHub Actions once to generate products.json.
+  </div>
 </section>
+
+<!-- Forward Modal -->
 <div class="modal" id="forwardModal" onclick="closeForwardModal(event)">
-<div class="modal-inner" onclick="event.stopPropagation()">
-<span class="close" onclick="closeForwardModal(event)">×</span>
-<h3 id="forwardTitle" style="margin:0 0 10px 0;">Forward Product</h3>
-<div id="forwardSub" style="font-size:13px;color:#6b7280;margin-bottom:8px;">
-        Choose a channel. A new window will open; this page will stay here.
-      </div>
-<div id="forwardPreview" style="border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.4;text-align:left;">
+  <div class="modal-inner" onclick="event.stopPropagation()">
+    <span class="close" onclick="closeForwardModal(event)">×</span>
+    <h3 id="forwardTitle" style="margin:0 0 10px 0;">Forward Product</h3>
+    <div id="forwardSub" style="font-size:13px;color:#6b7280;margin-bottom:8px;">
+      Choose a channel. A new window will open; this page will stay here.
+    </div>
+    <div id="forwardPreview" style="border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.4;text-align:left;"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
+      <button class="btn" id="copyBtn" onclick="copyForwardText()" style="background:#374151;">Copy Text</button>
+      <a class="contact-btn" href="#" id="forwardWA" rel="noopener" target="_blank">WhatsApp</a>
+      <a class="contact-btn" href="#" id="forwardTG" rel="noopener" target="_blank">Telegram</a>
+      <a class="contact-btn" href="#" id="forwardMail" rel="noopener" target="_blank">Email</a>
+    </div>
+  </div>
 </div>
-<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
-<button class="btn" id="copyBtn" onclick="copyForwardText()" style="background:#374151;">Copy Text</button>
-<a class="contact-btn" href="#" id="forwardWA" rel="noopener" target="_blank">WhatsApp</a>
-<a class="contact-btn" href="#" id="forwardTG" rel="noopener" target="_blank">Telegram</a>
-<a class="contact-btn" href="#" id="forwardMail" rel="noopener" target="_blank">Email</a>
-</div>
-</div>
-</div>
+
 <script>
-    // ===== Config =====
-    // ✅ 关键修复：用相对路径，兼容 ama.omino.top 和 dalemy-1.github.io/product-list/
-    const PRODUCTS_JSON_PATH = "./products.json";
-    const PRODUCT_PAGE_PATH  = "./product.html";
+  // ===== Config =====
+  const PRODUCTS_JSON_PATH = "./products.json";
 
-    const WA_PHONE = "8615778673666";
-    const TG_USERNAME = "dalemyrong";
-    const EMAIL_CONTACT = "info@dalemy.top";
+  const WA_PHONE = "8615778673666";
+  const TG_USERNAME = "dalemyrong";
+  const EMAIL_CONTACT = "info@dalemy.top";
+  const AUTO_REFRESH_MS = 60 * 1000;
 
-    // ✅ 60 秒检查更新（你指定默认 60 秒）
-    const AUTO_REFRESH_MS = 60 * 1000;
+  // ===== State =====
+  let ALL_PRODUCTS = [];
+  let LAST_LOADED_AT = null;
+  let CURRENT_FORWARD_PRODUCT = null;
 
-    // ===== State =====
-    let ALL_PRODUCTS = [];
-    let LAST_LOADED_AT = null;
-    let CURRENT_FORWARD_PRODUCT = null;
+  // ===== Language mapping =====
+  const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
 
-    let SORT_KEY = null; // null | 'price' | 'commission'
-    let STATUS_FILTER = "__all__"; // "__all__" or actual status string
-
-    // ===== Language mapping =====
-    const LANG_BY_MARKET = { US:"en", UK:"en", CA:"en", DE:"de", FR:"fr", IT:"it", ES:"es", JP:"ja" };
-
-    // ===== i18n UI =====
-    const UI_I18N = window.UI_I18N || {
-      en: {
-        pageTitle: "Product List",
-        productsTitle: "Products",
-        contactText: "For inquiries, you can contact us via WhatsApp, Telegram, or Email:",
-        refresh: "Refresh",
-        translatingHint: "Remark auto-translation is enabled (Chinese only). Original will be kept if translation fails.",
-        forwardTitle: "Forward Product",
-        forwardSub: "Choose a channel. A new window will open; this page will stay here.",
-        copy: "Copy Text",
-        statusLabel: "Status",
-        th: { action:"Action", market:"Market", image:"Image", title:"Title", keyword:"Keyword", store:"Store", remark:"Remark", price:"Discount Price", commission:"Commission" },
-        labels: { market:"Market", price:"Discount Price", commission:"Commission", asin:"ASIN", link:"Link", remark:"Remark" },
-        all: "All"
-      }
-    };
-
-    // ===== Currency formatting =====
-    const MARKET_CURRENCY = { US:"USD", UK:"GBP", DE:"EUR", FR:"EUR", IT:"EUR", ES:"EUR", CA:"CAD", JP:"JPY" };
-    function formatMoneyByMarket(value, market) {
-      const currency = MARKET_CURRENCY[market] || "USD";
-      const raw = String(value ?? "").trim();
-      if (raw === "" || raw === null || raw === undefined) return "";
-      const num = Number(raw.replace(/[^\d.-]/g, ""));
-      if (!Number.isFinite(num)) return raw;
-
-      const isJPY = currency === "JPY";
-      const isInt = Math.abs(num - Math.round(num)) < 1e-9;
-      const opts = { style:"currency", currency, minimumFractionDigits: isJPY ? 0 : (isInt ? 0 : 2), maximumFractionDigits: isJPY ? 0 : 2 };
-      return new Intl.NumberFormat("en", opts).format(num);
+  // ===== i18n UI =====
+  const UI_I18N = window.UI_I18N || {
+    en: {
+      pageTitle: "Product List",
+      productsTitle: "Products",
+      refresh: "Refresh",
+      forwardTitle: "Forward Product",
+      forwardSub: "Choose a channel. A new window will open; this page will stay here.",
+      copy: "Copy Text",
+      labels: { market:"Market", link:"Link", asin:"ASIN" }
     }
-    function toNumberMoney(v) {
-      const raw = String(v ?? "").trim();
-      if (!raw) return -Infinity;
-      const num = Number(raw.replace(/[^\d.-]/g, ""));
-      return Number.isFinite(num) ? num : -Infinity;
-    }
-
-    // ===== Helpers =====
-    function setStatus(text, meta = "") {
-      document.getElementById("statusBadge").textContent = text;
-      document.getElementById("statusMeta").textContent = meta;
-    }
-    function showEmptyHint(show) {
-      document.getElementById("emptyHint").style.display = show ? "block" : "none";
-    }
-    function currentMarket() {
-      return (document.getElementById("countrySelect").value || "UK").toUpperCase();
-    }
-    function currentLang() {
-      return LANG_BY_MARKET[currentMarket()] || "en";
-    }
-    function tUI() {
-      return UI_I18N[currentLang()] || UI_I18N.en;
-    }
-
-
-    // ===== Translation (as-is) =====
-    const TRANSLATE_CACHE_KEY = "remark_translate_cache_v2";
-    const translateCache = loadCache();
-    function loadCache() { try { return JSON.parse(localStorage.getItem(TRANSLATE_CACHE_KEY) || "{}"); } catch { return {}; } }
-    function saveCache() { try { localStorage.setItem(TRANSLATE_CACHE_KEY, JSON.stringify(translateCache)); } catch {} }
-    function cacheKey(lang, text) { return lang + "||" + text; }
-    function hasChinese(text) { return /[\u4e00-\u9fff]/.test(text || ""); }
-    function isBadTranslation(out) {
-      const sRaw = (out || "").toString().trim();
-      if (!sRaw) return true;
-      const s = sRaw.toUpperCase();
-      return (
-        s.includes("INVALID") || s.includes("ERROR") || s.includes("LANGPAIR") ||
-        s.includes("RFC3066") || s.includes("SUPPORTED") || s.includes("EXAMPLE:") ||
-        s.startsWith("'AUTO'") || s.startsWith("AUTO ")
-      );
-    }
-    function purgeBadCacheEntries() {
-      let changed = false;
-      for (const k of Object.keys(translateCache)) {
-        if (isBadTranslation(translateCache[k])) { delete translateCache[k]; changed = true; }
-      }
-      if (changed) saveCache();
-    }
-    const LIBRE_INSTANCES = [
-      "https://libretranslate.de/translate",
-      "https://translate.terraprint.co/translate",
-      "https://lt.vern.cc/translate"
-    ];
-    async function libreTranslateOnce(endpoint, q, targetLang) {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ q, source: "zh", target: targetLang, format: "text" })
-      });
-      if (!res.ok) throw new Error("translate http " + res.status);
-      const data = await res.json();
-      const out = (data && (data.translatedText || data.translation))
-        ? String(data.translatedText || data.translation).trim()
-        : "";
-      return out;
-    }
-    async function translateRemark(text, targetLang) {
-      const q = (text || "").trim();
-      if (!q) return "";
-      if (!hasChinese(q)) return q;
-      if (targetLang === "en") return q;
-
-      const key = cacheKey(targetLang, q);
-      if (translateCache[key] && isBadTranslation(translateCache[key])) {
-        delete translateCache[key];
-        saveCache();
-        return q;
-      }
-      if (translateCache[key]) return translateCache[key];
-
-      for (const ep of LIBRE_INSTANCES) {
-        try {
-          const out = await libreTranslateOnce(ep, q, targetLang);
-          if (!out || out === q || isBadTranslation(out)) continue;
-          translateCache[key] = out;
-          saveCache();
-          return out;
-        } catch {}
-      }
-      return q;
-    }
-    let translateQueue = [];
-    let translating = false;
-    function enqueueTranslate(task) { translateQueue.push(task); if (!translating) runTranslateQueue(); }
-    async function runTranslateQueue() {
-      translating = true;
-      while (translateQueue.length) {
-        const task = translateQueue.shift();
-        try { await task(); } catch {}
-        await new Promise(r => setTimeout(r, 220));
-      }
-      translating = false;
-    }
-    async function translateVisibleRemarks() {
-      const lang = currentLang();
-      const visibleRows = Array.from(document.querySelectorAll(".product-row"))
-        .filter(r => r.style.display !== "none");
-      visibleRows.forEach(row => {
-        const remarkEl = row.querySelector(".remark-text");
-        const loadingEl = row.querySelector(".remark-loading");
-        if (!remarkEl) return;
-        const orig = (remarkEl.dataset.remarkOriginal || "").trim();
-        if (!orig) return;
-        if (!hasChinese(orig) || lang === "en") {
-          remarkEl.textContent = orig;
-          remarkEl.title = orig;
-          if (loadingEl) loadingEl.textContent = "";
-          return;
-        }
-        const key = cacheKey(lang, orig);
-        if (translateCache[key] && !isBadTranslation(translateCache[key])) {
-          remarkEl.textContent = translateCache[key];
-          remarkEl.title = orig;
-          if (loadingEl) loadingEl.textContent = "";
-          return;
-        }
-        if (loadingEl) loadingEl.textContent = "Translating…";
-        remarkEl.textContent = orig;
-        remarkEl.title = orig;
-
-        enqueueTranslate(async () => {
-          const out = await translateRemark(orig, lang);
-          remarkEl.textContent = out || orig;
-          remarkEl.title = orig;
-          if (loadingEl) loadingEl.textContent = "";
-        });
-      });
-    }
-
-    // ===== Product Page =====
-    function openProductPage(product) {
-      const market = (product.market || "").trim().toUpperCase();
-      const asin = (product.asin || "").trim();
-      const link = (product.link || "").trim();
-      const url = PRODUCT_PAGE_PATH
-        + "?market=" + encodeURIComponent(market || "")
-        + "&asin=" + encodeURIComponent(asin || "")
-        + "&link=" + encodeURIComponent(link || "");
-      window.open(url, "_blank", "noopener");
-    }
-
-    // ===== Status filter =====
-    function normalizeStatus(s) {
-      const v = String(s ?? "").trim();
-      return v ? v : "__empty__";
-    }
-    function buildStatusOptions(products) {
-      const select = document.getElementById("statusSelect");
-      const T = tUI();
-
-      const set = new Set();
-      for (const p of products) set.add(normalizeStatus(p.status));
-
-      const statuses = Array.from(set)
-        .filter(v => v !== "__empty__")
-        .sort((a,b) => a.localeCompare(b));
-
-      const keep = STATUS_FILTER || "__all__";
-      select.innerHTML = "";
-
-      const optAll = document.createElement("option");
-      optAll.value = "__all__";
-      optAll.textContent = (T.all || "All");
-      select.appendChild(optAll);
-
-      for (const s of statuses) {
-        const opt = document.createElement("option");
-        opt.value = s;
-        opt.textContent = s;
-        select.appendChild(opt);
-      }
-
-      // restore selection if exists
-      const canUseKeep = (keep === "__all__") || statuses.includes(keep);
-      select.value = canUseKeep ? keep : "__all__";
-      STATUS_FILTER = select.value;
-      localStorage.setItem("status_filter", STATUS_FILTER);
-    }
-    function onStatusChange() {
-      const v = document.getElementById("statusSelect").value || "__all__";
-      STATUS_FILTER = v;
-      localStorage.setItem("status_filter", STATUS_FILTER);
-      renderTable();
-      translateVisibleRemarks();
-    }
-
-    // ===== i18n apply =====
-    function applyI18n() {
-      const T = tUI();
-      document.getElementById("pageTitle").textContent = T.pageTitle;
-      document.getElementById("productsTitle").textContent = T.productsTitle;
-      document.getElementById("contactText").textContent = T.contactText;
-      document.getElementById("refreshBtn").textContent = T.refresh;
-      document.getElementById("translateHint").textContent = T.translatingHint;
-      document.getElementById("statusFilterLabel").textContent = (T.statusLabel || "Status");
-
-      document.getElementById("forwardTitle").textContent = T.forwardTitle;
-      document.getElementById("forwardSub").textContent = T.forwardSub;
-      document.getElementById("copyBtn").textContent = T.copy;
-
-      document.getElementById("thAction").textContent = T.th.action;
-      document.getElementById("thMarket").textContent = T.th.market;
-      document.getElementById("thImage").textContent = T.th.image;
-      document.getElementById("thTitle").textContent = T.th.title;
-      document.getElementById("thKeyword").textContent = T.th.keyword;
-      document.getElementById("thStore").textContent = T.th.store;
-      document.getElementById("thRemark").textContent = T.th.remark;
-
-      refreshSortIndicators();
-    }
-
-    // ===== Fetch JSON =====
-    function fetchProductData(manual = false) {
-      // cache bust
-      const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
-      setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
-
-      fetch(url, { cache: "no-store" })
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-          return res.json();
-        })
-        .then(products => {
-          if (!Array.isArray(products)) throw new Error("products.json is not an array");
-
-          ALL_PRODUCTS = products.map((p, idx) => ({ ...p, __idx: idx }));
-          LAST_LOADED_AT = new Date();
-
-          // ✅ rebuild status filter options based on latest data
-          buildStatusOptions(ALL_PRODUCTS);
-
-          renderTable();
-          applyI18n();
-          translateVisibleRemarks();
-
-          setStatus("Loaded", `${products.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
-          showEmptyHint(products.length === 0);
-        })
-        .catch(err => {
-          console.error("Failed to load products.json:", err);
-          setStatus("Load failed", err.message);
-          showEmptyHint(true);
-          if (manual) alert("Failed to load products.json.\n\n" + err.message);
-        });
-    }
-
-    // ===== Sorting =====
-    function toggleSort(key) {
-      if (SORT_KEY === key) SORT_KEY = null;
-      else SORT_KEY = key;
-
-      renderTable();
-      refreshSortIndicators();
-      translateVisibleRemarks();
-    }
-    function refreshSortIndicators() {
-      document.getElementById("indPrice").textContent = (SORT_KEY === "price") ? "▼" : "";
-      document.getElementById("indCommission").textContent = (SORT_KEY === "commission") ? "▼" : "";
-    }
-
-    // ===== Render table with market + status filter + sort =====
-    function getVisibleProducts() {
-      const m = currentMarket();
-      let list = ALL_PRODUCTS.filter(p => String(p.market || "").trim().toUpperCase() === m);
-
-      // ✅ status filter
-      if (STATUS_FILTER && STATUS_FILTER !== "__all__") {
-        list = list.filter(p => normalizeStatus(p.status) === STATUS_FILTER);
-      }
-
-      if (SORT_KEY === "price") {
-        list = [...list].sort((a, b) => toNumberMoney(b.price) - toNumberMoney(a.price));
-      } else if (SORT_KEY === "commission") {
-        list = [...list].sort((a, b) => toNumberMoney(b.commission) - toNumberMoney(a.commission));
-      } else {
-        list = [...list].sort((a, b) => (a.__idx ?? 0) - (b.__idx ?? 0));
-      }
-      return list;
-    }
-
-    function renderTable() {
-      const visibleList = getVisibleProducts();
-      displayProducts(visibleList);
-
-      if (LAST_LOADED_AT) {
-        setStatus(
-          "Loaded",
-          `${visibleList.length}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`
-        );
-      }
-    }
-
-    function displayProducts(products) {
-      const tbody = document.getElementById("product-table-body");
-      tbody.innerHTML = "";
-
-      products.forEach(product => {
-        const row = document.createElement("tr");
-        row.classList.add("product-row");
-
-        const market = (product.market || "").trim().toUpperCase();
-        const safeTitle = escapeHtml(product.title || "");
-        const safeKeyword = escapeHtml(product.keyword || "");
-        const safeStore = escapeHtml(product.store || "");
-        const origRemark = String(product.remark || "");
-        const img = (product.image_url || "").trim();
-
-        const priceFormatted = formatMoneyByMarket(product.price, market);
-        const commissionFormatted = formatMoneyByMarket(product.commission, market);
-
-        row.innerHTML = `
-          <td>
-            <button class="btn" onclick='openForwardModal(${encodeProductForOnclick(product)})'>Forward</button>
-          </td>
-          <td>${escapeHtml(market)}</td>
-          <td>
-            <div class="img-cell">
-              ${img ? `
-                <img src="${escapeAttr(img)}" alt="${safeTitle}" class="product-image"
-                     onclick='openProductPage(${encodeProductForOnclick(product)})' />
-              ` : ""}
-            </div>
-          </td>
-          <td class="product-title">${safeTitle}</td>
-          <td style="cursor:pointer;" title="Click to copy"
-              onclick="copyToClipboard('${escapeAttr(product.keyword || "")}')">${safeKeyword}</td>
-          <td>${safeStore}</td>
-          <td>
-            <div class="remark-text" data-remark-original="${escapeAttr(origRemark)}" title="${escapeAttr(origRemark)}">${escapeHtml(origRemark)}</div>
-            <div class="remark-loading"></div>
-          </td>
-          <td>${escapeHtml(priceFormatted)}</td>
-          <td>${escapeHtml(commissionFormatted)}</td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      showEmptyHint(products.length === 0);
-    }
-
-    function encodeProductForOnclick(product) {
-      const safe = {
-        market: product.market || "",
-        asin: product.asin || "",
-        title: product.title || "",
-        keyword: product.keyword || "",
-        store: product.store || "",
-        remark: product.remark || "",
-        link: product.link || "",
-        image_url: product.image_url || "",
-        price: product.price || "",
-        commission: product.commission || "",
-        status: product.status || "",
-        __idx: product.__idx ?? 0
-      };
-      return JSON.stringify(safe)
-        .replaceAll("&", "\\u0026")
-        .replaceAll("<", "\\u003c")
-        .replaceAll(">", "\\u003e");
-    }
-
-    // ===== Market change =====
-    function onMarketChange() {
-      SORT_KEY = null;
-      renderTable();
-      applyI18n();
-      translateVisibleRemarks();
-      localStorage.setItem("selectedCountry", currentMarket());
-    }
-
-    // ===== Copy =====
-    function copyToClipboard(text) {
-      if (!text) return;
-      copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
-    }
-    function copyText(text) {
-      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
-      return new Promise((resolve, reject) => {
-        try {
-          const ta = document.createElement("textarea");
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          resolve();
-        } catch (e) { reject(e); }
-      });
-    }
-
-    // ===== Forward Modal =====
-    async function openForwardModal(product) {
-  CURRENT_FORWARD_PRODUCT = product;
-
-  const market = (product.market || "").trim().toUpperCase();
-  const lang = LANG_BY_MARKET[market] || "en";
-  const T = UI_I18N[lang] || UI_I18N.en;
-
-  const remarkOrig = String(product.remark || "").trim();
-  let remarkDisplay = remarkOrig;
-  if (remarkOrig && hasChinese(remarkOrig) && lang !== "en") {
-    const out = await translateRemark(remarkOrig, lang);
-    remarkDisplay = (!out || isBadTranslation(out)) ? remarkOrig : out;
-  }
-
-  // 生成需要的文本格式
-  const text = buildForwardTextLocalized(product, T.labels, market, remarkDisplay);
-  document.getElementById("forwardPreview").textContent = text;
-
-  const waUrl = "https://wa.me/" + WA_PHONE + "?text=" + encodeURIComponent(text);
-  const waBtn = document.getElementById("forwardWA");
-  waBtn.href = waUrl;
-  waBtn.onclick = (e) => { e.preventDefault(); window.open(waUrl, "_blank", "noopener"); };
-
-  const tgUrl = "https://t.me/" + TG_USERNAME;
-  const tgBtn = document.getElementById("forwardTG");
-  tgBtn.href = tgUrl;
-  tgBtn.onclick = (e) => {
-    e.preventDefault();
-    copyText(text).finally(() => window.open(tgUrl, "_blank", "noopener"));
   };
 
-  const subject = `[${market}] ${product.title || "Product"}`.trim();
-  const mailUrl =
-    "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
-    "?subject=" + encodeURIComponent(subject) +
-    "&body=" + encodeURIComponent(text);
-
-  const mailBtn = document.getElementById("forwardMail");
-  mailBtn.href = mailUrl;
-  mailBtn.onclick = (e) => { e.preventDefault(); window.open(mailUrl, "_blank", "noopener"); };
-
-  document.getElementById("forwardTitle").textContent = T.forwardTitle;
-  document.getElementById("forwardSub").textContent = T.forwardSub;
-  document.getElementById("copyBtn").textContent = T.copy;
-
-  document.getElementById("forwardModal").style.display = "block";
-}
-
-
-    function closeForwardModal(e) {
-      document.getElementById("forwardModal").style.display = "none";
-      CURRENT_FORWARD_PRODUCT = null;
-    }
-
-    function buildForwardTextLocalized(p, labels, market, remarkDisplay) {
-  // 格式化折扣价格和佣金
-  const price = formatMoneyByMarket(p.price, market);
-  const commission = formatMoneyByMarket(p.commission, market);
-
-  // 去除货币符号并检查是否为0
-  const rawPrice = (p.price && String(p.price).replace(/[^\d.-]/g, "")) || "0";
-  const rawCommission = (p.commission && String(p.commission).replace(/[^\d.-]/g, "")) || "0";
-
-  // 构建文本
-  const lines = [];
-  if (p.title) lines.push(p.title); // 商品标题
-  lines.push(`${labels.market}: ${market || "-"}`); // 市场
-
-  // 只在Discount Price不为0时才显示
-  if (parseFloat(rawPrice) > 0) {
-    lines.push(`Discount Price: ${price || rawPrice}`);
+  function setStatus(text, meta = "") {
+    document.getElementById("statusBadge").textContent = text;
+    document.getElementById("statusMeta").textContent = meta;
+  }
+  function showEmptyHint(show) {
+    document.getElementById("emptyHint").style.display = show ? "block" : "none";
+  }
+  function currentMarket() {
+    return (document.getElementById("countrySelect").value || "UK").toUpperCase();
+  }
+  function currentLang() {
+    return LANG_BY_MARKET[currentMarket()] || "en";
+  }
+  function tUI() {
+    return UI_I18N[currentLang()] || UI_I18N.en;
   }
 
-  // 只在Commission不为0时才显示
-  if (parseFloat(rawCommission) > 0) {
-    lines.push(`Commission: ${commission || rawCommission}`);
+  function normalizeUrl(u) {
+    const s = String(u || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    return "";
   }
 
-  // 显示Keyword和Store
-  if (p.keyword) lines.push(`Keyword: ${p.keyword}`);
-  if (p.store) lines.push(`Store: ${p.store}`);
-
-  // 显示Remark
-  if (remarkDisplay) lines.push(`Remark: ${remarkDisplay}`);
-
-  // 只有在有链接时才显示
-  if (p.link) lines.push(`Link: ${p.link}`);
-
-  return lines.join("\n");
-}
-
-
-
-
-
-    function copyForwardText() {
-      const text = document.getElementById("forwardPreview").textContent || "";
-      if (!text) return;
-      copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
+  // 点击图片：跳转产品链接
+  function openProductLink(product) {
+    const url = normalizeUrl(product && product.link);
+    if (!url) {
+      alert("This product has no valid link.");
+      return;
     }
+    window.open(url, "_blank", "noopener");
+  }
 
-    // ===== XSS safety =====
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
+  function applyI18n() {
+    const T = tUI();
+    document.getElementById("pageTitle").textContent = T.pageTitle;
+    document.getElementById("productsTitle").textContent = T.productsTitle;
+    document.getElementById("refreshBtn").textContent = T.refresh;
+
+    document.getElementById("forwardTitle").textContent = T.forwardTitle;
+    document.getElementById("forwardSub").textContent = T.forwardSub;
+    document.getElementById("copyBtn").textContent = T.copy;
+  }
+
+  function fetchProductData(manual = false) {
+    const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
+    setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
+
+    fetch(url, { cache: "no-store" })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        return res.json();
+      })
+      .then(products => {
+        if (!Array.isArray(products)) throw new Error("products.json is not an array");
+
+        ALL_PRODUCTS = products.map((p, idx) => ({ ...p, __idx: idx }));
+        LAST_LOADED_AT = new Date();
+
+        renderGrid();
+        applyI18n();
+
+        setStatus("Loaded", `${products.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
+        showEmptyHint(products.length === 0);
+      })
+      .catch(err => {
+        console.error("Failed to load products.json:", err);
+        setStatus("Load failed", err.message);
+        showEmptyHint(true);
+        if (manual) alert("Failed to load products.json.\n\n" + err.message);
+      });
+  }
+
+  function getVisibleProducts() {
+    const m = currentMarket();
+    return ALL_PRODUCTS
+      .filter(p => String(p.market || "").trim().toUpperCase() === m)
+      .sort((a, b) => (a.__idx ?? 0) - (b.__idx ?? 0));
+  }
+
+  function renderGrid() {
+    const visibleList = getVisibleProducts();
+    displayProducts(visibleList);
+
+    if (LAST_LOADED_AT) {
+      setStatus(
+        "Loaded",
+        `${visibleList.length}/${ALL_PRODUCTS.length} visible · ${LAST_LOADED_AT.toLocaleString()}`
+      );
     }
-    function escapeAttr(str) { return escapeHtml(str); }
+  }
 
-    // ===== Init =====
-    window.onload = function () {
-      purgeBadCacheEntries();
+  function displayProducts(products) {
+    const grid = document.getElementById("productGrid");
+    grid.innerHTML = "";
 
-      const savedCountry = localStorage.getItem("selectedCountry");
-      document.getElementById("countrySelect").value = savedCountry || "UK";
+    products.forEach(product => {
+      const card = document.createElement("div");
+      card.className = "card";
 
-      const savedStatus = localStorage.getItem("status_filter");
-      STATUS_FILTER = savedStatus || "__all__";
+      const asin = (product.asin || "").trim();
+      const img  = (product.image_url || "").trim();
+      const safeTitle = escapeHtml(product.title || "");
 
-      applyI18n();
-      fetchProductData(false);
+      card.innerHTML = `
+        <div class="image-wrap">
+          ${img ? `
+            <img
+              src="${escapeAttr(img)}"
+              alt="${safeTitle}"
+              class="product-image"
+              onclick='openProductLink(${encodeProductForOnclick(product)})'
+            />
+          ` : `
+            <div class="product-image" style="display:flex;align-items:center;justify-content:center;color:#6b7280;">
+              No Image
+            </div>
+          `}
+          <div class="asin-under" title="${escapeAttr(asin)}">${escapeHtml(asin || "-")}</div>
 
-      // ✅ 60秒自动刷新 products.json（无需手动刷新页面）
-      setInterval(() => fetchProductData(false), AUTO_REFRESH_MS);
+          <div class="forward-wrap">
+            <button class="btn forward-btn" onclick='openForwardModal(${encodeProductForOnclick(product)})'>Forward</button>
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+
+    showEmptyHint(products.length === 0);
+  }
+
+  function encodeProductForOnclick(product) {
+    const safe = {
+      market: product.market || "",
+      asin: product.asin || "",
+      title: product.title || "",
+      link: product.link || "",
+      image_url: product.image_url || "",
+      __idx: product.__idx ?? 0
     };
-  </script>
+    return JSON.stringify(safe)
+      .replaceAll("&", "\\u0026")
+      .replaceAll("<", "\\u003c")
+      .replaceAll(">", "\\u003e");
+  }
+
+  function onMarketChange() {
+    renderGrid();
+    applyI18n();
+    localStorage.setItem("selectedCountry", currentMarket());
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise((resolve, reject) => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+
+  async function openForwardModal(product) {
+    CURRENT_FORWARD_PRODUCT = product;
+
+    const market = (product.market || "").trim().toUpperCase();
+    const lang = LANG_BY_MARKET[market] || "en";
+    const T = UI_I18N[lang] || UI_I18N.en;
+
+    const text = buildForwardTextLocalized(product, T.labels, market);
+    document.getElementById("forwardPreview").textContent = text;
+
+    const waUrl = "https://wa.me/" + WA_PHONE + "?text=" + encodeURIComponent(text);
+    const waBtn = document.getElementById("forwardWA");
+    waBtn.href = waUrl;
+    waBtn.onclick = (e) => { e.preventDefault(); window.open(waUrl, "_blank", "noopener"); };
+
+    const tgUrl = "https://t.me/" + TG_USERNAME;
+    const tgBtn = document.getElementById("forwardTG");
+    tgBtn.href = tgUrl;
+    tgBtn.onclick = (e) => {
+      e.preventDefault();
+      copyText(text).finally(() => window.open(tgUrl, "_blank", "noopener"));
+    };
+
+    const subject = `[${market}] ${product.title || "Product"}`.trim();
+    const mailUrl =
+      "mailto:" + encodeURIComponent(EMAIL_CONTACT) +
+      "?subject=" + encodeURIComponent(subject) +
+      "&body=" + encodeURIComponent(text);
+
+    const mailBtn = document.getElementById("forwardMail");
+    mailBtn.href = mailUrl;
+    mailBtn.onclick = (e) => { e.preventDefault(); window.open(mailUrl, "_blank", "noopener"); };
+
+    document.getElementById("forwardTitle").textContent = T.forwardTitle;
+    document.getElementById("forwardSub").textContent = T.forwardSub;
+    document.getElementById("copyBtn").textContent = T.copy;
+
+    document.getElementById("forwardModal").style.display = "block";
+  }
+
+  function closeForwardModal(e) {
+    document.getElementById("forwardModal").style.display = "none";
+    CURRENT_FORWARD_PRODUCT = null;
+  }
+
+  // ✅ 复制文本包含 ASIN（按你要求）
+  function buildForwardTextLocalized(p, labels, market) {
+    const lines = [];
+    if (p.title) lines.push(p.title);
+
+    const asin = (p.asin || "").trim();
+    if (asin) lines.push(`${labels.asin || "ASIN"}: ${asin}`);
+
+    lines.push(`${labels.market || "Market"}: ${market || "-"}`);
+    if (p.link) lines.push(`${labels.link || "Link"}: ${p.link}`);
+
+    return lines.join("\n");
+  }
+
+  function copyForwardText() {
+    const text = document.getElementById("forwardPreview").textContent || "";
+    if (!text) return;
+    copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+  function escapeAttr(str) { return escapeHtml(str); }
+
+  window.onload = function () {
+    const savedCountry = localStorage.getItem("selectedCountry");
+    document.getElementById("countrySelect").value = savedCountry || "UK";
+
+    applyI18n();
+    fetchProductData(false);
+    setInterval(() => fetchProductData(false), AUTO_REFRESH_MS);
+  };
+</script>
 </body>
 </html>
-
-
-
-
-
-
-
