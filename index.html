@@ -72,15 +72,39 @@
     background:var(--primary); color:#fff;
   }
   .btn:hover{ opacity:.92; }
+  .btn.secondary{
+    background:#fff; color:#111827;
+  }
 
-  /* ===== Editorial (降低“纯聚合站”风险) ===== */
-  .editorial{
+  /* ===== How to choose (原创内容，提升审核通过率与转化) ===== */
+  .howto{
     margin-top:12px;
-    background:#fff; border:1px solid var(--border); border-radius:14px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:14px;
     padding:12px 14px;
   }
-  .editorial h2{ margin:0 0 6px 0; font-size:16px; }
-  .editorial p{ margin:0; font-size:13px; color:#374151; line-height:1.6; }
+  .howto h2{ margin:0 0 8px 0; font-size:16px; }
+  .howto .cols{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  @media(max-width:780px){ .howto .cols{ grid-template-columns:1fr; } }
+  .howto .item{
+    background:var(--soft);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 10px;
+  }
+  .howto .item h3{ margin:0 0 6px 0; font-size:13px; }
+  .howto .item p{ margin:0; font-size:12px; color:#374151; line-height:1.55; }
+  .howto .note{
+    margin-top:10px;
+    font-size:12px;
+    color:#4b5563;
+    line-height:1.6;
+  }
 
   /* ===== Grid ===== */
   .grid{
@@ -139,10 +163,6 @@
     justify-content:center;
     align-items:center;
   }
-  .cta.secondary{
-    background:#fff;
-    color:#111827;
-  }
 
   .empty{
     margin-top:14px;
@@ -170,6 +190,7 @@
     background:#fff; color:#111827; text-decoration:none; border:1px solid var(--border);
     font-weight:900; font-size:14px;
   }
+
   footer{
     margin-top:18px;
     background:#fff; border-top:1px solid var(--border);
@@ -194,20 +215,20 @@
       <option value="CA">CA</option>
       <option value="JP">JP</option>
     </select>
-    <input class="search-input" id="searchInput" placeholder="Search by ASIN / title / keyword…" oninput="renderGrid()"/>
+    <input class="search-input" id="searchInput" placeholder="Search by ASIN / title…" oninput="renderGrid()"/>
   </div>
 </header>
 
 <div class="wrap">
 
-  <!-- ✅ 审核最关键：清晰披露 + 非背书声明 -->
+  <!-- ✅ 审核关键：强披露 + 非背书声明 -->
   <div class="compliance">
     <div class="row">
       <div class="pill"><strong>Disclosure</strong>: As an Amazon Associate, we earn from qualifying purchases.</div>
       <div class="pill">Independent site · Not endorsed by Amazon</div>
     </div>
     <div class="small">
-      Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. We provide independent product references and direct you to Amazon for purchase.
+      Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. We provide independent product references and redirect you to Amazon for purchase.
       See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </div>
@@ -220,13 +241,30 @@
     <button class="btn" onclick="fetchProductData(true)">Refresh</button>
   </div>
 
-  <!-- ✅ 增强“内容价值”，降低纯聚合风险 -->
-  <div class="editorial">
-    <h2>How we present products</h2>
-    <p>
-      This page is a curated list for easy browsing by market. We do not claim official endorsement, pricing guarantees, or availability.
-      Product details and final purchase terms are always provided on Amazon.
-    </p>
+  <!-- ✅ How to choose（原创内容区：提高审查通过率 + 提升转化，不含 keyword/remark） -->
+  <div class="howto">
+    <h2>How to choose</h2>
+    <div class="cols">
+      <div class="item">
+        <h3>1) Confirm compatibility</h3>
+        <p>Before buying, confirm model/size/region compatibility on the Amazon product page, especially for electronics, consumables, and replacement parts.</p>
+      </div>
+      <div class="item">
+        <h3>2) Check seller & fulfillment</h3>
+        <p>Prefer reputable sellers and reliable fulfillment methods. Review shipping speed, return policy, and warranty terms on Amazon.</p>
+      </div>
+      <div class="item">
+        <h3>3) Compare variants</h3>
+        <p>Many products have variants (color, bundle, capacity). Make sure you select the correct variant on Amazon before checkout.</p>
+      </div>
+      <div class="item">
+        <h3>4) Read recent reviews</h3>
+        <p>Focus on recent verified purchase reviews. Pay attention to recurring issues (durability, sizing, missing parts) rather than single outliers.</p>
+      </div>
+    </div>
+    <div class="note">
+      Note: We do not guarantee pricing or availability. Final product details, pricing, and purchase terms are provided by Amazon on the destination page.
+    </div>
   </div>
 
   <div class="grid" id="productGrid"></div>
@@ -241,13 +279,13 @@
 <div class="modal" id="forwardModal" onclick="closeForwardModal(event)">
   <div class="modal-inner" onclick="event.stopPropagation()">
     <span class="close" onclick="closeForwardModal(event)">×</span>
-    <h3 id="forwardTitle" style="margin:0 0 10px 0;">Forward Product</h3>
-    <div id="forwardSub" style="font-size:13px;color:#6b7280;margin-bottom:8px;">
+    <h3 style="margin:0 0 10px 0;">Forward Product</h3>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">
       Choose a channel. This page will stay here.
     </div>
     <div id="forwardPreview" style="border:1px solid #e5e7eb;border-radius:14px;padding:10px;background:#f9fafb;white-space:pre-wrap;font-size:13px;line-height:1.45;text-align:left;"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">
-      <button class="btn" id="copyBtn" onclick="copyForwardText()" style="background:#374151;">Copy Text</button>
+      <button class="btn" onclick="copyForwardText()" style="background:#374151;">Copy Text</button>
       <a class="contact-btn" href="#" id="forwardWA" rel="noopener noreferrer" target="_blank">WhatsApp</a>
       <a class="contact-btn" href="#" id="forwardTG" rel="noopener noreferrer" target="_blank">Telegram</a>
       <a class="contact-btn" href="#" id="forwardMail" rel="noopener noreferrer" target="_blank">Email</a>
@@ -259,7 +297,7 @@
   <div class="inner">
     <div><strong>Affiliate disclosure:</strong> As an Amazon Associate, we earn from qualifying purchases.</div>
     <div><strong>Independence:</strong> This site is not an official Amazon website and is not endorsed by Amazon.</div>
-    <div><strong>Links:</strong> When you click “View on Amazon”, you are redirected to Amazon. Amazon may use cookies for tracking qualifying purchases.</div>
+    <div><strong>Links:</strong> “View on Amazon” redirects to Amazon. Amazon may use cookies for tracking qualifying purchases.</div>
     <div style="margin-top:6px;">
       <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> ·
       <a href="./terms.html" target="_blank" rel="noopener">Terms of Use</a>
@@ -269,7 +307,6 @@
 </footer>
 
 <script>
-  // ===== Config =====
   const PRODUCTS_JSON_PATH = "./products.json";
 
   const WA_PHONE = "8615778673666";
@@ -278,12 +315,10 @@
 
   const AUTO_REFRESH_MS = 60 * 1000;
 
-  // ===== State =====
   let ALL_PRODUCTS = [];
   let LAST_LOADED_AT = null;
   let CURRENT_FORWARD_PRODUCT = null;
 
-  // ===== Helpers =====
   function currentMarket(){
     return (document.getElementById("countrySelect").value || "US").toUpperCase();
   }
@@ -306,7 +341,6 @@
     document.getElementById("emptyHint").style.display = show ? "block" : "none";
   }
 
-  // ===== Fetch =====
   function fetchProductData(manual=false){
     const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
     setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
@@ -332,7 +366,6 @@
       });
   }
 
-  // ===== Filter =====
   function getVisibleProducts(){
     const m = currentMarket();
     const q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
@@ -341,15 +374,31 @@
       .filter(p => String(p.market || "").trim().toUpperCase() === m)
       .filter(p => {
         if (!q) return true;
-        const hay = [
-          p.asin, p.title, p.keyword, p.store, p.remark
-        ].map(v => String(v || "").toLowerCase()).join(" ");
+        const hay = [p.asin, p.title].map(v => String(v || "").toLowerCase()).join(" ");
         return hay.includes(q);
       })
       .sort((a,b) => (a.__idx ?? 0) - (b.__idx ?? 0));
   }
 
-  // ===== Render =====
+  function encodeProductForOnclick(p){
+    const safe = {
+      market: p.market || "",
+      asin: p.asin || "",
+      title: p.title || "",
+      link: p.link || "",
+      image_url: p.image_url || "",
+      __idx: p.__idx ?? 0
+    };
+    return JSON.stringify(safe)
+      .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
+  }
+
+  function openProductLink(product){
+    const url = normalizeUrl(product && product.link);
+    if (!url){ alert("This item has no valid Amazon link."); return; }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function renderGrid(){
     const grid = document.getElementById("productGrid");
     const items = getVisibleProducts();
@@ -363,9 +412,7 @@
       const card = document.createElement("div");
       card.className = "card";
 
-      // 主转化 CTA：直达 Amazon
-      // 规范 rel：sponsored + nofollow + noopener
-      const cta = link
+      const viewAmazon = link
         ? `<a class="btn cta" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
         : `<button class="btn cta" onclick="alert('No valid Amazon link for this item.');">View on Amazon</button>`;
 
@@ -382,7 +429,7 @@
           <div class="asin" title="${escapeHtml(asin)}">ASIN: ${escapeHtml(asin || "-")}</div>
 
           <div class="actions">
-            ${cta}
+            ${viewAmazon}
             <button class="btn cta secondary" onclick='openForwardModal(${encodeProductForOnclick(p)})'>Forward</button>
           </div>
         </div>
@@ -396,35 +443,11 @@
     }
   }
 
-  function encodeProductForOnclick(p){
-    const safe = {
-      market: p.market || "",
-      asin: p.asin || "",
-      title: p.title || "",
-      keyword: p.keyword || "",
-      store: p.store || "",
-      remark: p.remark || "",
-      link: p.link || "",
-      image_url: p.image_url || "",
-      __idx: p.__idx ?? 0
-    };
-    return JSON.stringify(safe)
-      .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
-  }
-
-  function openProductLink(product){
-    const url = normalizeUrl(product && product.link);
-    if (!url){ alert("This item has no valid Amazon link."); return; }
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  // ===== Market change =====
   function onMarketChange(){
     localStorage.setItem("selectedCountry", currentMarket());
     renderGrid();
   }
 
-  // ===== Copy =====
   function copyText(text){
     if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
     return new Promise((resolve, reject) => {
@@ -440,7 +463,6 @@
     });
   }
 
-  // ===== Forward modal (复制包含 ASIN) =====
   function buildForwardText(product){
     const market = String(product.market || "").trim().toUpperCase();
     const asin = String(product.asin || "").trim();
@@ -457,7 +479,6 @@
 
   async function openForwardModal(product){
     CURRENT_FORWARD_PRODUCT = product;
-
     const text = buildForwardText(product);
     document.getElementById("forwardPreview").textContent = text;
 
@@ -497,7 +518,6 @@
     copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
   }
 
-  // ===== Init =====
   window.onload = function(){
     const saved = localStorage.getItem("selectedCountry");
     if (saved) document.getElementById("countrySelect").value = saved;
