@@ -235,13 +235,62 @@
   }
   footer .inner{ max-width:1200px; margin:0 auto; font-size:12px; color:#374151; line-height:1.7; }
   footer a{ color:#2563eb; text-decoration:none; }
+
+  /* ====== Detail Page (keep UI consistent: reuse existing card styles) ====== */
+  .detail-wrap{
+    margin-top:14px;
+  }
+  .detail-top{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+    background:#fff; border:1px solid var(--border); border-radius:14px;
+    padding:10px 12px;
+  }
+  .detail-head{
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .detail-title{
+    font-weight:900; font-size:14px; margin:0;
+  }
+  .detail-sub{
+    font-size:12px; color:#6b7280; margin:0;
+  }
+  .detail-card{
+    margin-top:12px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:12px;
+    box-shadow:0 10px 24px rgba(0,0,0,.04);
+  }
+  .detail-image{
+    width:100%;
+    max-width:520px;
+    aspect-ratio:1/1;
+    object-fit:contain;
+    border-radius:16px;
+    border:1px solid var(--border);
+    background:#fff;
+    display:block;
+    margin:0 auto;
+  }
+  .detail-actions{
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px;
+  }
+  .detail-note{
+    margin-top:10px;
+    font-size:12px; color:#4b5563; line-height:1.55;
+    background:var(--soft);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Product Picks</h1>
-  <div class="topbar">
+  <h1 id="headerTitle">Product Picks</h1>
+  <div class="topbar" id="topbar">
     <select class="country-select" id="countrySelect" onchange="onMarketChange()">
       <option value="US">US</option>
       <option value="UK">UK</option>
@@ -256,10 +305,10 @@
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap" id="app">
 
-  <!-- ✅ Homepage Hero (inserted) -->
-  <section class="hero" aria-label="Independent product reference">
+  <!-- ✅ Homepage Hero -->
+  <section class="hero" id="heroBlock" aria-label="Independent product reference">
     <div class="title">Independent product reference</div>
     <p class="desc">
       This website lists product identifiers and references to items available on Amazon.
@@ -272,7 +321,7 @@
     </div>
   </section>
 
-  <div class="compliance">
+  <div class="compliance" id="complianceBlock">
     <div class="row">
       <div class="pill"><strong>Disclosure</strong>: As an Amazon Associate, we earn from qualifying purchases.</div>
       <div class="pill">Independent site · Not endorsed by Amazon</div>
@@ -283,7 +332,7 @@
     </div>
   </div>
 
-  <div class="status-bar">
+  <div class="status-bar" id="statusBar">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <span class="badge" id="statusBadge">Loading…</span>
       <span class="muted" id="statusMeta"></span>
@@ -291,7 +340,7 @@
     <button class="btn" onclick="fetchProductData(true)">Refresh</button>
   </div>
 
-  <div class="howto">
+  <div class="howto" id="howtoBlock">
     <h2>How to choose</h2>
     <div class="cols">
       <div class="item">
@@ -316,11 +365,15 @@
     </div>
   </div>
 
+  <!-- list grid -->
   <div class="grid" id="productGrid"></div>
 
   <div class="empty" id="emptyHint" style="display:none;">
     No products loaded. Ensure <code>products.json</code> is available in this folder and contains items for the selected market.
   </div>
+
+  <!-- detail page container (hidden by default) -->
+  <div id="detailPage" style="display:none;"></div>
 
 </div>
 
@@ -350,7 +403,7 @@
   </div>
 </div>
 
-<footer>
+<footer id="footer">
   <div class="inner">
     <div><strong>Affiliate disclosure:</strong> As an Amazon Associate, we earn from qualifying purchases.</div>
     <div><strong>Independence:</strong> This site is not an official Amazon website and is not endorsed by Amazon.</div>
@@ -405,7 +458,7 @@
     return "";
   }
   function escapeHtml(str){
-    return String(str)
+    return String(str ?? "")
       .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
       .replaceAll('"',"&quot;").replaceAll("'","&#39;");
   }
@@ -469,6 +522,101 @@
     }
   }
 
+  /* ========= GitHub Pages SPA fallback restore (custom domain) ========= */
+  function restoreSpaPathIfAny(){
+    try{
+      const restore = sessionStorage.getItem("__spa_redirect_path__");
+      if (restore){
+        sessionStorage.removeItem("__spa_redirect_path__");
+        history.replaceState(null, "", restore);
+      }
+    }catch(e){}
+  }
+
+  /* ========= Routing: /p/{market}/{asin or asin_1} ========= */
+  function parseRoute(){
+    const path = location.pathname || "/";
+    const m = path.match(/^\/p\/([^\/]+)\/([^\/?#]+)\/?$/i);
+    if (m){
+      return { type:"product", market: decodeURIComponent(m[1] || ""), key: decodeURIComponent(m[2] || "") };
+    }
+    return { type:"list" };
+  }
+
+  function normalizeAsin(a){ return String(a||"").trim().toUpperCase(); }
+  function normalizeMarket(m){ return String(m||"").trim().toUpperCase(); }
+
+  function splitAsinKey(key){
+    const s = String(key||"").trim();
+    const mm = s.match(/^([A-Za-z0-9]{8,20})(?:_(\d+))?$/);
+    if (!mm) return { base: normalizeAsin(s), idx: 0 };
+    const base = normalizeAsin(mm[1]);
+    const idx = mm[2] ? Math.max(0, parseInt(mm[2], 10)) : 0;
+    return { base, idx };
+  }
+
+  function buildAsinKey(baseAsin, dupIndex){
+    const base = normalizeAsin(baseAsin);
+    if (!base) return "";
+    if (!dupIndex || dupIndex <= 0) return base;
+    return `${base}_${dupIndex}`;
+  }
+
+  function buildProductPath(market, asinKey){
+    const m = String(market||"").trim().toLowerCase();
+    return `/p/${encodeURIComponent(m)}/${encodeURIComponent(String(asinKey||""))}`;
+  }
+  function buildProductPermalink(market, asinKey){
+    return location.origin + buildProductPath(market, asinKey);
+  }
+
+  function annotateAsinKeys(products){
+    const counter = new Map(); // key: MARKET|ASIN
+    products.forEach(p=>{
+      const M = normalizeMarket(p.market);
+      const A = normalizeAsin(p.asin);
+      const k = `${M}|${A}`;
+      const seen = (counter.get(k) || 0);
+      p.__dupIndex = seen;
+      p.__asinKey = buildAsinKey(p.asin, seen);
+      counter.set(k, seen + 1);
+    });
+  }
+
+  function findProductByRoute(products, market, asinKey){
+    const M = normalizeMarket(market);
+    const { base, idx } = splitAsinKey(asinKey);
+
+    const group = products.filter(p =>
+      normalizeMarket(p.market) === M &&
+      normalizeAsin(p.asin) === base
+    );
+
+    if (!group.length) return null;
+    const picked = group[idx] || null;
+    if (!picked) return null;
+
+    // ensure consistent keys on picked
+    picked.__dupIndex = idx;
+    picked.__asinKey = buildAsinKey(picked.asin, idx);
+    return picked;
+  }
+
+  function encodeProductForOnclick(p){
+    const safe = {
+      market: p.market || "",
+      asin: p.asin || "",
+      title: p.title || "",
+      link: p.link || "",
+      image_url: p.image_url || "",
+      __idx: p.__idx ?? 0,
+      __asinKey: p.__asinKey || ""
+    };
+    return JSON.stringify(safe)
+      .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
+  }
+
+  /* ========= Data ========= */
   function fetchProductData(manual=false){
     const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
     setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
@@ -480,11 +628,26 @@
       })
       .then(list => {
         if (!Array.isArray(list)) throw new Error("products.json is not an array");
-        ALL_PRODUCTS = list.map((p, idx) => ({...p, __idx: idx}));
+
+        ALL_PRODUCTS = list.map((p, idx) => ({
+          market: String(p.market || "").trim().toUpperCase(),
+          asin: String(p.asin || "").trim(),
+          title: String(p.title || "").trim(),
+          link: String(p.link || "").trim(),
+          image_url: String(p.image_url || "").trim(),
+          __idx: idx
+        }));
+
+        annotateAsinKeys(ALL_PRODUCTS);
+
         LAST_LOADED_AT = new Date();
-        renderGrid();
-        setStatus("Loaded", `${ALL_PRODUCTS.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
-        showEmpty(ALL_PRODUCTS.length === 0);
+        renderByRoute();
+
+        const route = parseRoute();
+        if (route.type === "list"){
+          setStatus("Loaded", `${ALL_PRODUCTS.length} items · ${LAST_LOADED_AT.toLocaleString()}`);
+          showEmpty(ALL_PRODUCTS.length === 0);
+        }
       })
       .catch(err => {
         console.error(err);
@@ -506,25 +669,6 @@
         return hay.includes(q);
       })
       .sort((a,b) => (a.__idx ?? 0) - (b.__idx ?? 0));
-  }
-
-  function encodeProductForOnclick(p){
-    const safe = {
-      market: p.market || "",
-      asin: p.asin || "",
-      title: p.title || "",
-      link: p.link || "",
-      image_url: p.image_url || "",
-      __idx: p.__idx ?? 0
-    };
-    return JSON.stringify(safe)
-      .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
-  }
-
-  function openProductLink(product){
-    const url = normalizeUrl(product && product.link);
-    if (!url){ alert("This item has no valid Amazon link."); return; }
-    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   /* ========= advisor (short) copy generator ========= */
@@ -667,6 +811,149 @@
     `;
   }
 
+  /* ========= UI switching (list vs detail) ========= */
+  function showList(){
+    document.getElementById("topbar").style.display = "flex";
+    document.getElementById("heroBlock").style.display = "block";
+    document.getElementById("complianceBlock").style.display = "block";
+    document.getElementById("statusBar").style.display = "flex";
+    document.getElementById("howtoBlock").style.display = "block";
+    document.getElementById("productGrid").style.display = "grid";
+    document.getElementById("detailPage").style.display = "none";
+    document.getElementById("footer").style.display = "block";
+    document.getElementById("headerTitle").textContent = "Product Picks";
+    document.title = "Product Picks";
+  }
+
+  function showDetail(){
+    document.getElementById("topbar").style.display = "none";
+    document.getElementById("heroBlock").style.display = "none";
+    document.getElementById("complianceBlock").style.display = "none";
+    document.getElementById("statusBar").style.display = "none";
+    document.getElementById("howtoBlock").style.display = "none";
+    document.getElementById("productGrid").style.display = "none";
+    document.getElementById("emptyHint").style.display = "none";
+    document.getElementById("detailPage").style.display = "block";
+    document.getElementById("footer").style.display = "block";
+  }
+
+  function goHome(){
+    history.pushState({type:"list"}, "", "/");
+    renderByRoute();
+    window.scrollTo({top:0, behavior:"instant"});
+  }
+
+  function goToProductPage(p){
+    const m = String(p.market||"").trim().toLowerCase();
+    const key = String(p.__asinKey || buildAsinKey(p.asin, 0) || "").trim();
+    if (!m || !key) return;
+    const path = buildProductPath(m, key);
+    history.pushState({type:"product", market:m, key:key}, "", path);
+    renderByRoute();
+    window.scrollTo({top:0, behavior:"instant"});
+  }
+
+  function renderByRoute(){
+    const route = parseRoute();
+    if (route.type === "product"){
+      const prod = findProductByRoute(ALL_PRODUCTS, route.market, route.key);
+      if (!prod){
+        renderNotFound(route);
+        return;
+      }
+      renderDetail(prod, route.market, route.key);
+      return;
+    }
+    showList();
+    renderGrid();
+  }
+
+  function renderNotFound(route){
+    showDetail();
+    const box = document.getElementById("detailPage");
+    box.innerHTML = `
+      <div class="detail-wrap">
+        <div class="detail-top">
+          <div class="detail-head">
+            <p class="detail-title">Product not found</p>
+            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b> · Key: <b>${escapeHtml(route.key||"")}</b></p>
+          </div>
+          <button class="btn secondary" onclick="goHome()">← Back to list</button>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-note">
+            This product reference may have been removed or moved. Please return to the list and search again.
+          </div>
+        </div>
+      </div>
+    `;
+    document.title = "Product not found • Product Picks";
+  }
+
+  function renderDetail(p, marketRaw, keyRaw){
+    showDetail();
+
+    const market = normalizeMarket(marketRaw);
+    const asinKey = String(keyRaw || p.__asinKey || "").trim();
+    const title = String(p.title || "").trim();
+    const link = normalizeUrl(p.link);
+    const imgRaw = String(p.image_url || "").trim();
+    const imgSrc = initialImageUrl(imgRaw);
+    const pageLink = buildProductPermalink(market.toLowerCase(), asinKey);
+
+    document.title = `${title || asinKey} • ${market} • Product Reference`;
+
+    const viewAmazon = link
+      ? `<a class="btn cta" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
+      : `<button class="btn cta" onclick="alert('No valid Amazon link for this item.');">View on Amazon</button>`;
+
+    const box = document.getElementById("detailPage");
+    box.innerHTML = `
+      <div class="detail-wrap">
+        <div class="detail-top">
+          <div class="detail-head">
+            <p class="detail-title">${escapeHtml(title || "Product Reference")}</p>
+            <p class="detail-sub">Market: <b>${escapeHtml(market)}</b> · Page key: <b>${escapeHtml(asinKey)}</b></p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn secondary" onclick="goHome()">← Back</button>
+            <button class="btn secondary" onclick="copyText('${escapeHtml(pageLink)}').then(()=>alert('Copied page link!')).catch(()=>alert('Copy failed'))">Copy page link</button>
+            <button class="btn secondary" onclick='openContactModal(${encodeProductForOnclick(p)})'>Contact / Copy</button>
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <img class="detail-image"
+            src="${escapeHtml(imgSrc)}"
+            data-original="${escapeHtml(normalizeUrl(imgRaw) || "")}"
+            data-stage="0"
+            alt="${escapeHtml(asinKey || 'Product')}"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            onerror="onImgError(this)"
+          />
+
+          <div style="display:flex;justify-content:center;margin-top:10px;">
+            ${whyHtml(p)}
+          </div>
+
+          <div class="detail-actions">
+            ${viewAmazon}
+            <button class="btn cta secondary" onclick='openContactModal(${encodeProductForOnclick(p)})'>Contact / Copy</button>
+          </div>
+
+          <div class="detail-note">
+            <strong>Disclosure:</strong> As an Amazon Associate, we earn from qualifying purchases.
+            This is an independent site and is not endorsed by Amazon. Purchases are completed on Amazon via the product page.
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ========= list render ========= */
   function renderGrid(){
     const grid = document.getElementById("productGrid");
     const items = getVisibleProducts();
@@ -697,7 +984,7 @@
                decoding="async"
                referrerpolicy="no-referrer"
                onerror="onImgError(this)"
-               onclick='openProductLink(${encodeProductForOnclick(p)})' />
+               onclick='goToProductPage(${encodeProductForOnclick(p)})' />
 
           <div class="asin" title="${escapeHtml(asin)}">ASIN: ${escapeHtml(asin || "-")}</div>
 
@@ -723,6 +1010,7 @@
     renderGrid();
   }
 
+  /* ========= copy ========= */
   function copyText(text){
     if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
     return new Promise((resolve, reject) => {
@@ -807,7 +1095,12 @@
     copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
   }
 
+  window.addEventListener("popstate", () => renderByRoute());
+
   window.onload = function(){
+    // SPA fallback restore for GitHub Pages + custom domain
+    restoreSpaPathIfAny();
+
     const saved = localStorage.getItem("selectedCountry");
     if (saved) document.getElementById("countrySelect").value = saved;
 
