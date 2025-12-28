@@ -236,7 +236,7 @@
   footer .inner{ max-width:1200px; margin:0 auto; font-size:12px; color:#374151; line-height:1.7; }
   footer a{ color:#2563eb; text-decoration:none; }
 
-  /* ====== Detail Page (keep UI consistent: reuse existing card styles) ====== */
+  /* ====== Detail Page ====== */
   .detail-wrap{ margin-top:14px; }
   .detail-top{
     display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
@@ -297,7 +297,6 @@
 
 <div class="wrap" id="app">
 
-  <!-- ✅ Homepage Hero -->
   <section class="hero" id="heroBlock" aria-label="Independent product reference">
     <div class="title">Independent product reference</div>
     <p class="desc">
@@ -307,7 +306,7 @@
     </p>
     <div class="hint">
       Need help identifying an item? Use <strong>Contact / Copy</strong> to copy Title / ASIN / Market and reach us for general assistance.
-      See <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
+      See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </section>
 
@@ -318,7 +317,7 @@
     </div>
     <div class="small">
       Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. We provide independent product references and redirect you to Amazon for purchase.
-      See <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms.html" target="_blank" rel="noopener">Terms</a>.
+      See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </div>
 
@@ -355,21 +354,17 @@
     </div>
   </div>
 
-  <!-- list grid -->
   <div class="grid" id="productGrid"></div>
 
-  <div class="empty" id="emptyHint" style="display:none;">
-    No products loaded. Ensure <code>products.json</code> is available in this folder and contains items for the selected market.
-  </div>
+  <div class="empty" id="emptyHint" style="display:none;"></div>
 
-  <!-- detail page container (hidden by default) -->
   <div id="detailPage" style="display:none;"></div>
 
 </div>
 
-<div class="modal" id="contactModal" onclick="closeContactModal(event)">
+<div class="modal" id="contactModal" onclick="closeContactModal()">
   <div class="modal-inner" onclick="event.stopPropagation()">
-    <span class="close" onclick="closeContactModal(event)">×</span>
+    <span class="close" onclick="closeContactModal()">×</span>
 
     <h3 style="margin:0 0 10px 0;">Contact & Copy</h3>
     <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">
@@ -384,7 +379,7 @@
       <a class="contact-btn" href="#" id="contactWA" rel="noopener noreferrer" target="_blank">WhatsApp</a>
       <a class="contact-btn" href="#" id="contactTG" rel="noopener noreferrer" target="_blank">Telegram</a>
       <a class="contact-btn" href="#" id="contactMail" rel="noopener noreferrer" target="_blank">Email</a>
-      <button class="btn secondary" onclick="closeContactModal(event)">Close</button>
+      <button class="btn secondary" onclick="closeContactModal()">Close</button>
     </div>
 
     <div class="mini-hint">
@@ -399,16 +394,17 @@
     <div><strong>Independence:</strong> This site is not an official Amazon website and is not endorsed by Amazon.</div>
     <div><strong>Links:</strong> “View on Amazon” redirects to Amazon. Amazon may use cookies for tracking qualifying purchases.</div>
     <div style="margin-top:6px;">
-      <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> ·
-      <a href="/terms.html" target="_blank" rel="noopener">Terms</a>
+      <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> ·
+      <a href="./terms.html" target="_blank" rel="noopener">Terms</a>
     </div>
     <div style="margin-top:6px;">© 2025 ama.omino.top</div>
   </div>
 </footer>
 
 <script>
-  // IMPORTANT:
-  // - Use absolute path so /p/{market}/{asin} pages can still load products.json (avoid /p/.../products.json 404)
+  /* IMPORTANT:
+     Use absolute path so /p/... pages do NOT fetch /p/.../products.json (404).
+     Root has products.json. */
   const PRODUCTS_JSON_PATH = "/products.json";
 
   const WA_PHONE = "8615778673666";
@@ -420,9 +416,9 @@
   let ALL_PRODUCTS = [];
   let LAST_LOADED_AT = null;
   let CURRENT_CONTACT_PRODUCT = null;
-  let LAST_LOAD_ERROR = ""; // distinguish fetch failure vs empty market
+  let LAST_LOAD_ERROR = "";
+  let IS_LOADING = false;
 
-  /* ========= Placeholder (only used after multiple retries) ========= */
   const PLACEHOLDER_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
       <defs>
@@ -459,30 +455,22 @@
     document.getElementById("statusBadge").textContent = text;
     document.getElementById("statusMeta").textContent = meta;
   }
-
   function setEmptyMessage(html){
-    const el = document.getElementById("emptyHint");
-    el.innerHTML = html;
+    document.getElementById("emptyHint").innerHTML = html;
   }
-
   function showEmptyByState(visibleCount){
     const el = document.getElementById("emptyHint");
 
-    // Case 1: fetch failed
     if (LAST_LOAD_ERROR){
       setEmptyMessage(`Failed to load <code>products.json</code>. ${escapeHtml(LAST_LOAD_ERROR)}`);
       el.style.display = "block";
       return;
     }
-
-    // Case 2: loaded but empty dataset
     if (!ALL_PRODUCTS || ALL_PRODUCTS.length === 0){
       setEmptyMessage(`No products loaded. Ensure <code>products.json</code> is available in this folder.`);
       el.style.display = "block";
       return;
     }
-
-    // Case 3: loaded, but market/search yields 0
     if (visibleCount === 0){
       const m = currentMarket();
       const q = (document.getElementById("searchInput").value || "").trim();
@@ -494,18 +482,11 @@
       el.style.display = "block";
       return;
     }
-
-    // Case 4: normal
     el.style.display = "none";
   }
 
-  /* ========= Image URL resolver (maximize display rate) ========= */
-  function isHttpsPage(){
-    return String(location.protocol || "").toLowerCase() === "https:";
-  }
-  function upgradeToHttps(url){
-    return String(url || "").replace(/^http:\/\//i, "https://");
-  }
+  function isHttpsPage(){ return String(location.protocol || "").toLowerCase() === "https:"; }
+  function upgradeToHttps(url){ return String(url || "").replace(/^http:\/\//i, "https://"); }
   function toWeserv(url){
     const cleaned = String(url || "").replace(/^https?:\/\//i, "");
     return "https://images.weserv.nl/?url=" + encodeURIComponent(cleaned);
@@ -515,16 +496,12 @@
     if (!u) return PLACEHOLDER_DATA_URI;
     return u;
   }
-
   function onImgError(imgEl){
     try{
       if (!imgEl) return;
-      const stage = Number(imgEl.dataset.stage || "0"); // 0 original, 1 https-upgrade, 2 proxy, 3 placeholder
+      const stage = Number(imgEl.dataset.stage || "0");
       const original = String(imgEl.dataset.original || "");
-      if (!original) {
-        imgEl.src = PLACEHOLDER_DATA_URI;
-        return;
-      }
+      if (!original) { imgEl.src = PLACEHOLDER_DATA_URI; return; }
 
       if (stage === 0){
         imgEl.dataset.stage = "1";
@@ -536,13 +513,11 @@
         imgEl.dataset.stage = "2";
         return;
       }
-
       if (stage === 1){
         imgEl.dataset.stage = "2";
         imgEl.src = toWeserv(original);
         return;
       }
-
       imgEl.dataset.stage = "3";
       imgEl.src = PLACEHOLDER_DATA_URI;
       imgEl.removeAttribute("srcset");
@@ -551,7 +526,6 @@
     }
   }
 
-  /* ========= GitHub Pages SPA fallback restore (custom domain) ========= */
   function restoreSpaPathIfAny(){
     try{
       const restore = sessionStorage.getItem("__spa_redirect_path__");
@@ -562,7 +536,6 @@
     }catch(e){}
   }
 
-  /* ========= Routing: /p/{market}/{asin or asin_1} ========= */
   function parseRoute(){
     const path = location.pathname || "/";
     const m = path.match(/^\/p\/([^\/]+)\/([^\/?#]+)\/?$/i);
@@ -600,7 +573,7 @@
   }
 
   function annotateAsinKeys(products){
-    const counter = new Map(); // key: MARKET|ASIN
+    const counter = new Map();
     products.forEach(p=>{
       const M = normalizeMarket(p.market);
       const A = normalizeAsin(p.asin);
@@ -620,7 +593,6 @@
       normalizeMarket(p.market) === M &&
       normalizeAsin(p.asin) === base
     );
-
     if (!group.length) return null;
     const picked = group[idx] || null;
     if (!picked) return null;
@@ -644,10 +616,10 @@
       .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
   }
 
-  /* ========= Data ========= */
   function fetchProductData(manual=false){
     const url = PRODUCTS_JSON_PATH + "?ts=" + Date.now();
     LAST_LOAD_ERROR = "";
+    IS_LOADING = true;
     setStatus(manual ? "Refreshing…" : "Loading…", "Fetching products.json");
 
     fetch(url, { cache:"no-store" })
@@ -658,36 +630,32 @@
       .then(list => {
         if (!Array.isArray(list)) throw new Error("products.json is not an array");
 
-        // IMPORTANT:
-        // Your products.json uses field name: "market" (not "market")
-        // Keep compatibility for any variants anyway.
         ALL_PRODUCTS = list.map((p, idx) => ({
-          market: String(p.market ?? p.market ?? p.Market ?? "").trim().toUpperCase(),
+          market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
           asin: String(p.asin ?? p.ASIN ?? "").trim(),
           title: String(p.title ?? p.Title ?? "").trim(),
           link: String(p.link ?? p.Link ?? "").trim(),
-          image_url: String(p.image_url ?? p.image_url ?? p.Image ?? "").trim(),
+          image_url: String(p.image_url ?? p.image_url ?? p.image ?? p.Image ?? "").trim(),
           __idx: idx
         }));
 
         annotateAsinKeys(ALL_PRODUCTS);
-
         LAST_LOADED_AT = new Date();
+        IS_LOADING = false;
+
         renderByRoute();
 
-        // status for list view only (detail has its own title)
         const route = parseRoute();
         if (route.type === "list"){
-          const m = currentMarket();
           const visible = getVisibleProducts().length;
-          setStatus("Loaded", `${visible}/${ALL_PRODUCTS.length} visible · ${m} · ${LAST_LOADED_AT.toLocaleString()}`);
+          setStatus("Loaded", `${visible}/${ALL_PRODUCTS.length} visible · ${currentMarket()} · ${LAST_LOADED_AT.toLocaleString()}`);
         }
       })
       .catch(err => {
         console.error(err);
         LAST_LOAD_ERROR = err.message || String(err);
+        IS_LOADING = false;
         setStatus("Load failed", LAST_LOAD_ERROR);
-        // Let renderGrid/showEmptyByState render the right empty message
         renderByRoute();
         if (manual) alert("Failed to load products.json.\n\n" + LAST_LOAD_ERROR);
       });
@@ -707,7 +675,6 @@
       .sort((a,b) => (a.__idx ?? 0) - (b.__idx ?? 0));
   }
 
-  /* ========= advisor (short) copy generator ========= */
   function hash32(str){
     const s = String(str || "");
     let h = 2166136261;
@@ -738,7 +705,6 @@
     if (has("kitchen","pan","pot","knife","cook","coffee","mug","bottle","cup","spoon","fork")) return "kitchen";
     if (has("replacement","refill","filter","cartridge","spare")) return "replacement";
     if (has("printer","filament","pla","abs","3d")) return "3d_printing";
-
     return "general";
   }
 
@@ -831,7 +797,6 @@
     const checks = CHECKS_BY_BUCKET[bucket] || CHECKS_BY_BUCKET.general;
     const line1 = seededPick(checks, seed, "c1");
     const line2 = seededPick(FINAL_REMINDERS, seed, "r");
-
     return { head, opener, line1, line2 };
   }
 
@@ -847,7 +812,6 @@
     `;
   }
 
-  /* ========= UI switching (list vs detail) ========= */
   function showList(){
     document.getElementById("topbar").style.display = "flex";
     document.getElementById("heroBlock").style.display = "block";
@@ -868,6 +832,7 @@
     document.getElementById("statusBar").style.display = "none";
     document.getElementById("howtoBlock").style.display = "none";
     document.getElementById("productGrid").style.display = "none";
+    document.getElementById("emptyHint").style.display = "none";
     document.getElementById("detailPage").style.display = "block";
     document.getElementById("footer").style.display = "block";
   }
@@ -888,9 +853,35 @@
     window.scrollTo({top:0, behavior:"instant"});
   }
 
+  function renderProductLoading(route){
+    showDetail();
+    const box = document.getElementById("detailPage");
+    box.innerHTML = `
+      <div class="detail-wrap">
+        <div class="detail-top">
+          <div class="detail-head">
+            <p class="detail-title">Loading product…</p>
+            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b> · Key: <b>${escapeHtml(route.key||"")}</b></p>
+          </div>
+          <button class="btn secondary" onclick="goHome()">← Back to list</button>
+        </div>
+        <div class="detail-card">
+          <div class="detail-note">
+            Loading data from <code>products.json</code>. Please wait…
+          </div>
+        </div>
+      </div>
+    `;
+    document.title = "Loading… • Product Picks";
+  }
+
   function renderByRoute(){
     const route = parseRoute();
     if (route.type === "product"){
+      if ((IS_LOADING || !LAST_LOADED_AT) && !LAST_LOAD_ERROR){
+        renderProductLoading(route);
+        return;
+      }
       const prod = findProductByRoute(ALL_PRODUCTS, route.market, route.key);
       if (!prod){
         renderNotFound(route);
@@ -988,7 +979,6 @@
     `;
   }
 
-  /* ========= list render ========= */
   function renderGrid(){
     const grid = document.getElementById("productGrid");
     const items = getVisibleProducts();
@@ -1034,10 +1024,8 @@
       grid.appendChild(card);
     });
 
-    // Empty-state is now accurate:
     showEmptyByState(items.length);
 
-    // Keep status bar meaningful
     if (LAST_LOADED_AT && !LAST_LOAD_ERROR){
       setStatus("Loaded", `${items.length}/${ALL_PRODUCTS.length} visible · ${currentMarket()} · ${LAST_LOADED_AT.toLocaleString()}`);
     }
@@ -1048,7 +1036,6 @@
     renderGrid();
   }
 
-  /* ========= copy ========= */
   function copyText(text){
     if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
     return new Promise((resolve, reject) => {
@@ -1064,7 +1051,6 @@
     });
   }
 
-  // 复制：只要 Title/ASIN/Market（不含任何链接）
   function buildCopyInfo(product){
     const market = String(product.market || "").trim().toUpperCase();
     const asin = String(product.asin || "").trim();
@@ -1140,6 +1126,9 @@
 
     const saved = localStorage.getItem("selectedCountry");
     if (saved) document.getElementById("countrySelect").value = saved;
+
+    // Render immediately (so /p/... shows "Loading" instead of "Not found")
+    renderByRoute();
 
     fetchProductData(false);
     setInterval(() => fetchProductData(false), AUTO_REFRESH_MS);
