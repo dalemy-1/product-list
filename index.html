@@ -1181,16 +1181,15 @@
   }
 
   function buildCopyInfo(product){
-    const market = String(product.market || "").trim().toUpperCase();
-    const asin = String(product.asin || "").trim();
-    const title = String(product.title || "").trim();
+  const market = String(product.market || "").trim().toUpperCase();
+  const asin = String(product.asin || "").trim();
 
-    const lines = [];
-    if (title) lines.push(title);
-    if (asin) lines.push(`ASIN: ${asin}`);
-    if (market) lines.push(`Market: ${market}`);
-    return lines.join("\n");
-  }
+  const lines = [];
+  if (asin) lines.push(`ASIN: ${asin}`);
+  if (market) lines.push(`Market: ${market}`);
+  return lines.join("\n");
+}
+
 
   function buildContactText(product){
     const base = buildCopyInfo(product);
@@ -1288,4 +1287,5 @@
 </script>
 </body>
 </html>
+
 
