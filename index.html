@@ -5,6 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Product Picks</title>
 <meta name="description" content="Independent product picks. As an Amazon Associate, we earn from qualifying purchases.">
+
+<!-- ===== Link Preview (OG) for WhatsApp / Telegram / etc. ===== -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ama.omino.top">
+<meta property="og:title" content="Product Picks • Independent product reference">
+<meta property="og:description" content="Independent product references by market (US/UK/DE/FR/IT/ES/CA/JP). As an Amazon Associate, we earn from qualifying purchases.">
+<meta property="og:url" content="https://ama.omino.top/">
+<meta property="og:image" content="https://ama.omino.top/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Product Picks • Independent product reference">
+<meta name="twitter:description" content="Independent product references by market (US/UK/DE/FR/IT/ES/CA/JP). As an Amazon Associate, we earn from qualifying purchases.">
+<meta name="twitter:image" content="https://ama.omino.top/og.png">
+
+<script>
+  // Early hide for real users (reduce UI impact); most preview bots don't execute JS.
+  (function(){
+    try{
+      var ua = (navigator.userAgent || "").toLowerCase();
+      var isBot =
+        ua.indexOf("whatsapp")>-1 ||
+        ua.indexOf("telegrambot")>-1 ||
+        ua.indexOf("facebookexternalhit")>-1 ||
+        ua.indexOf("facebot")>-1 ||
+        ua.indexOf("twitterbot")>-1 ||
+        ua.indexOf("discordbot")>-1 ||
+        ua.indexOf("slackbot")>-1 ||
+        ua.indexOf("linkedinbot")>-1 ||
+        ua.indexOf("pinterest")>-1 ||
+        ua.indexOf("embedly")>-1 ||
+        ua.indexOf("googlebot")>-1;
+      if (!isBot) document.documentElement.classList.add("human");
+    }catch(e){}
+  })();
+</script>
+
+<style>
+  /* Bot preview block: visible by default (for crawlers), hidden for humans very early. */
+  .bot-preview{ display:block; }
+  html.human .bot-preview{ display:none !important; }
+
+  .bot-preview{
+    margin:12px 0 0;
+    background:#ffffff;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:12px 14px;
+    line-height:1.55;
+  }
+  .bot-preview .bp-title{ font-weight:900; font-size:14px; margin:0 0 6px 0; color:#111827; }
+  .bot-preview .bp-desc{ margin:0; font-size:12px; color:#374151; }
+  .bot-preview .bp-meta{ margin-top:8px; font-size:12px; color:#6b7280; }
+  .bot-preview code{ background:#f3f4f6; padding:2px 6px; border-radius:8px; }
+</style>
+
 <style>
   :root{
     --bg:#f4f4f9;
@@ -297,6 +354,19 @@
 
 <div class="wrap" id="app">
 
+  <!-- ===== Bot-friendly preview block (static HTML for link preview crawlers) ===== -->
+  <section class="bot-preview" aria-label="Link preview">
+    <p class="bp-title">Product Picks • Independent product reference</p>
+    <p class="bp-desc">
+      This site lists product identifiers and references by market (US/UK/DE/FR/IT/ES/CA/JP).
+      Purchases are completed on Amazon.
+      <strong>Disclosure:</strong> As an Amazon Associate, we earn from qualifying purchases.
+    </p>
+    <div class="bp-meta">
+      Tip: product pages follow <code>/p/{market}/{asin}</code> (example: <code>/p/us/B0GC4CN5SZ</code>).
+    </div>
+  </section>
+
   <section class="hero" id="heroBlock" aria-label="Independent product reference">
     <div class="title">Independent product reference</div>
     <p class="desc">
@@ -417,27 +487,8 @@
   // Purpose: suggest a default Market based on user's IP country.
   // Behavior: only runs when user has not manually selected a Market before.
   // Fallback: US on any error/timeout/unknown country.
-  const GEO_API = "https://ipapi.co/json/"; // You may replace with another provider you trust
+  const GEO_API = "https://ipapi.co/json/";
   const GEO_TIMEOUT_MS = 1800;
-
-  function isLinkPreviewBot(){
-  const ua = (navigator.userAgent || "").toLowerCase();
-  // 覆盖常见抓取器：WhatsApp / Telegram / Facebook / Twitter / Discord / Slack 等
-  return (
-    ua.includes("whatsapp") ||
-    ua.includes("telegrambot") ||
-    ua.includes("facebookexternalhit") ||
-    ua.includes("facebot") ||
-    ua.includes("twitterbot") ||
-    ua.includes("discordbot") ||
-    ua.includes("slackbot") ||
-    ua.includes("linkedinbot") ||
-    ua.includes("pinterest") ||
-    ua.includes("embedly") ||
-    ua.includes("googlebot") // 可选：搜索引擎也让它走稳定模式
-  );
-}
-  
 
   // ISO country code -> site Market
   // Note: United Kingdom is GB, not UK.
@@ -472,6 +523,23 @@
     }catch(e){
       return "US";
     }
+  }
+
+  function isLinkPreviewBot(){
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return (
+      ua.includes("whatsapp") ||
+      ua.includes("telegrambot") ||
+      ua.includes("facebookexternalhit") ||
+      ua.includes("facebot") ||
+      ua.includes("twitterbot") ||
+      ua.includes("discordbot") ||
+      ua.includes("slackbot") ||
+      ua.includes("linkedinbot") ||
+      ua.includes("pinterest") ||
+      ua.includes("embedly") ||
+      ua.includes("googlebot")
+    );
   }
 
   let ALL_PRODUCTS = [];
@@ -1185,36 +1253,31 @@
   window.onload = async function(){
     restoreSpaPathIfAny();
 
-  // support ?open=/p/uk/B0G1Y9WTDL  (from preview redirect pages)
-try{
-  const u = new URL(location.href);
-  const openPath = (u.searchParams.get("open") || "").trim();
-
-  // only allow internal /p/... route
-  if (openPath && /^\/p\//i.test(openPath)) {
-    // remove ?open= from the URL, then move SPA route to /p/...
-    history.replaceState(null, "", openPath);
-  }
-}catch(e){}
+    // support ?open=/p/uk/B0G1Y9WTDL  (from preview redirect pages)
+    try{
+      const u = new URL(location.href);
+      const openPath = (u.searchParams.get("open") || "").trim();
+      if (openPath && /^\/p\//i.test(openPath)) {
+        history.replaceState(null, "", openPath);
+      }
+    }catch(e){}
 
     let saved = null;
-try { saved = localStorage.getItem("selectedCountry"); } catch(e){}
+    try { saved = localStorage.getItem("selectedCountry"); } catch(e){}
 
-const bot = isLinkPreviewBot();
+    const bot = isLinkPreviewBot();
 
-if (saved){
-  // 用户已手动选过国家：永远以用户选择为准
-  document.getElementById("countrySelect").value = saved;
-}else if (bot){
-  // 预览爬虫：不做 IP 定位、不写 localStorage，保持稳定默认 US
-  document.getElementById("countrySelect").value = "US";
-}else{
-  // 真人首次访问：再做 IP 定位
-  const guessed = await detectMarketFromIP();
-  document.getElementById("countrySelect").value = guessed || "US";
-  try { localStorage.setItem("selectedCountry", guessed || "US"); } catch(e){}
-}
-
+    if (saved){
+      document.getElementById("countrySelect").value = saved;
+    }else if (bot){
+      // preview bots: stable default, no geo, no localStorage writes
+      document.getElementById("countrySelect").value = "US";
+    }else{
+      // real users: best-effort IP inference once
+      const guessed = await detectMarketFromIP();
+      document.getElementById("countrySelect").value = guessed || "US";
+      try { localStorage.setItem("selectedCountry", guessed || "US"); } catch(e){}
+    }
 
     // Render immediately (so /p/... shows "Loading" instead of "Not found")
     renderByRoute();
@@ -1225,4 +1288,3 @@ if (saved){
 </script>
 </body>
 </html>
-
