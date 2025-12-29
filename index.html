@@ -1051,13 +1051,13 @@
 
     const market = normalizeMarket(marketRaw);
     const asinKey = String(keyRaw || p.__asinKey || "").trim();
-    const title = String(p.title || "").trim();
+    const title = ""; // keep empty on purpose
     const link = normalizeUrl(p.link);
     const imgRaw = String(p.image_url || "").trim();
     const imgSrc = initialImageUrl(imgRaw);
     const pageLink = buildProductPermalink(market.toLowerCase(), asinKey);
 
-    document.title = `${title || asinKey} • ${market} • Product Reference`;
+    document.title = `${asinKey} • ${market} • Product Reference`;
 
     const viewAmazon = link
       ? `<a class="btn cta" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
@@ -1068,7 +1068,7 @@
       <div class="detail-wrap">
         <div class="detail-top">
           <div class="detail-head">
-            <p class="detail-title">${escapeHtml(title || "Product Reference")}</p>
+            <p class="detail-title">Product Reference</p>
             <p class="detail-sub">Market: <b>${escapeHtml(market)}</b> · Page key: <b>${escapeHtml(asinKey)}</b></p>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1288,3 +1288,4 @@
 </script>
 </body>
 </html>
+
