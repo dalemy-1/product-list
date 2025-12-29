@@ -1,193 +1,199 @@
 // tools/generate_product_pages.mjs
-// Generate static preview pages with OG tags for WhatsApp/Telegram link previews.
-// Output: /p/{marketLower}/{asinKey}/index.html
-// Data source: /products.json (root)
-// Key improvements:
-// 1) No meta refresh (some crawlers stop parsing).
-// 2) og:image uses a stable proxy (weserv) + direct image fallback.
+// Generate static preview pages for WhatsApp/Telegram link unfurling.
+//
+// Output:
+//   /p/{marketLower}/{asinKey}/index.html
+//
+// Key features:
+// - Does NOT delete existing /p/... pages (so delisted products keep working).
+// - Uses OG meta tags for previews.
+// - Human users are redirected to "/?open=/p/{marketLower}/{asinKey}" (SPA route).
+//
+// Usage:
+//   node tools/generate_product_pages.mjs
+//
+// Env:
+//   SITE_ORIGIN   (default: "https://ama.omino.top")
+//   PRODUCTS_JSON (default: "./products.json")
+//   OUT_DIR       (default: "./p")
 
 import fs from "fs";
 import path from "path";
 
-const ROOT = process.cwd();
+const SITE_ORIGIN = (process.env.SITE_ORIGIN || "https://ama.omino.top").replace(/\/+$/, "");
+const PRODUCTS_JSON = process.env.PRODUCTS_JSON || "./products.json";
+const OUT_DIR = process.env.OUT_DIR || "./p";
 
-// Your public site origin (custom domain for GitHub Pages)
-const SITE_ORIGIN = "https://ama.omino.top";
-
-// Input data file
-const PRODUCTS_JSON = path.join(ROOT, "products.json");
-
-// Output root folder under repository root
-const OUT_DIR = path.join(ROOT, "p");
-
-// ===== Helpers =====
-function safeText(s) {
-  return String(s ?? "").trim();
+// -------- utils --------
+function ensureDirSync(dir) {
+  fs.mkdirSync(dir, { recursive: true });
 }
 
-function escHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function readJsonSync(file) {
+  const raw = fs.readFileSync(file, "utf8");
+  return JSON.parse(raw);
 }
 
 function normalizeMarket(m) {
-  return safeText(m).toUpperCase();
+  return String(m || "").trim().toUpperCase();
 }
 
 function normalizeAsin(a) {
-  return safeText(a).toUpperCase();
+  return String(a || "").trim().toUpperCase();
 }
 
-function ensureAbsUrl(u) {
-  const s = safeText(u);
+// For duplicates within same market+asin, create keys like ASIN_1, ASIN_2 ...
+function annotateAsinKeys(products) {
+  const counter = new Map();
+  for (const p of products) {
+    const M = normalizeMarket(p.market);
+    const A = normalizeAsin(p.asin);
+    const k = `${M}|${A}`;
+    const seen = counter.get(k) || 0;
+    p.__dupIndex = seen;
+    p.__asinKey = seen > 0 ? `${A}_${seen}` : A;
+    counter.set(k, seen + 1);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function safeUrl(u) {
+  const s = String(u || "").trim();
   if (!s) return "";
   if (/^https?:\/\//i.test(s)) return s;
   return "";
 }
 
-function toWeserv(url) {
-  // weserv requires URL without protocol for best compatibility
-  const cleaned = String(url || "").replace(/^https?:\/\//i, "");
-  return "https://images.weserv.nl/?url=" + encodeURIComponent(cleaned);
+function httpsify(u) {
+  return String(u || "").replace(/^http:\/\//i, "https://");
 }
 
-function ensureDir(p) {
-  fs.mkdirSync(p, { recursive: true });
+function buildProductPath(marketLower, asinKey) {
+  return `/p/${encodeURIComponent(marketLower)}/${encodeURIComponent(String(asinKey || ""))}/`;
 }
 
-function buildPageUrl(marketLower, asinKey) {
-  return `${SITE_ORIGIN}/p/${marketLower}/${encodeURIComponent(asinKey)}`;
-}
-
-function buildOpenUrl(marketLower, asinKey) {
-  // We will redirect humans to the SPA which understands /p/... route
-  // Your index.html already added support for ?open=...
-  const openPath = `/p/${marketLower}/${asinKey}`;
-  return `${SITE_ORIGIN}/?open=${encodeURIComponent(openPath)}`;
-}
-
-// ===== Duplicate ASIN handling =====
-// Same market + same asin may appear multiple times -> ASIN, ASIN_1, ASIN_2...
-const counter = new Map();
-function buildAsinKey(market, asin) {
-  const k = `${market}|${asin}`;
-  const n = counter.get(k) || 0;
-  counter.set(k, n + 1);
-  return n === 0 ? asin : `${asin}_${n}`;
-}
-
-// ===== HTML builder =====
-function buildHtml({ market, marketLower, asinKey, asin, title, imageUrl }) {
-  const pageUrl = buildPageUrl(marketLower, asinKey);
-  const openUrl = buildOpenUrl(marketLower, asinKey);
-
-  const ogTitle = title ? title : `ASIN ${asin}`;
+function buildPreviewHtml({ market, asinKey, imageUrl }) {
+  // IMPORTANT: do NOT use product title in the preview card
+  const ogTitle = "Product Reference";
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
 
-  // Improve preview reliability:
-  // - Use image proxy first (Telegram/WhatsApp crawlers often fail on Amazon CDN)
-  // - Keep direct image as fallback
-  const ogImageProxy = toWeserv(imageUrl);
-  const ogImageDirect = imageUrl;
+  const marketUpper = normalizeMarket(market);
+  const marketLower = marketUpper.toLowerCase();
+
+  const pagePath = buildProductPath(marketLower, asinKey);
+  const pageUrl = `${SITE_ORIGIN}${pagePath}`;
+
+  // Redirect humans to SPA with ?open=...
+  const openParam = `/?open=${encodeURIComponent(pagePath.replace(/\/$/, ""))}`;
+  const redirectUrl = `${SITE_ORIGIN}${openParam}`;
+
+  const img = httpsify(safeUrl(imageUrl));
+
+  // If no image, still output OG tags but omit og:image to reduce failures.
+  const ogImageTags = img
+    ? `
+<meta property="og:image" content="${escapeHtml(img)}"/>
+<meta name="twitter:image" content="${escapeHtml(img)}"/>
+<meta name="twitter:card" content="summary_large_image"/>
+`
+    : `
+<meta name="twitter:card" content="summary"/>
+`;
 
   return `<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 
-  <title>${escHtml(ogTitle)} • ${escHtml(market)} • Product Picks</title>
-  <meta name="description" content="${escHtml(ogDesc)}"/>
+<title>${escapeHtml(marketUpper)} • ${escapeHtml(asinKey)} • Product Picks</title>
+<meta name="description" content="${escapeHtml(ogDesc)}"/>
 
-  <meta property="og:type" content="product"/>
-  <meta property="og:site_name" content="Product Picks"/>
-  <meta property="og:title" content="${escHtml(ogTitle)}"/>
-  <meta property="og:description" content="${escHtml(ogDesc)}"/>
-  <meta property="og:url" content="${escHtml(pageUrl)}"/>
+<meta property="og:type" content="product"/>
+<meta property="og:site_name" content="Product Picks"/>
+<meta property="og:title" content="${escapeHtml(ogTitle)}"/>
+<meta property="og:description" content="${escapeHtml(ogDesc)}"/>
+<meta property="og:url" content="${escapeHtml(pageUrl)}"/>
+${ogImageTags}
+<meta name="twitter:title" content="${escapeHtml(ogTitle)}"/>
+<meta name="twitter:description" content="${escapeHtml(ogDesc)}"/>
 
-  <!-- Prefer proxy image for higher crawler success -->
-  <meta property="og:image" content="${escHtml(ogImageProxy)}"/>
-  <!-- Fallback to direct image -->
-  <meta property="og:image" content="${escHtml(ogImageDirect)}"/>
-  <meta property="og:image:width" content="1200"/>
-  <meta property="og:image:height" content="630"/>
+<meta name="robots" content="index,follow"/>
+<link rel="canonical" href="${escapeHtml(pageUrl)}"/>
 
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="${escHtml(ogTitle)}"/>
-  <meta name="twitter:description" content="${escHtml(ogDesc)}"/>
-  <meta name="twitter:image" content="${escHtml(ogImageProxy)}"/>
-
-  <meta name="robots" content="index,follow"/>
+<!-- Human users: handoff to SPA -->
+<meta http-equiv="refresh" content="0; url=${escapeHtml(redirectUrl)}"/>
 </head>
 <body>
-  <!-- Important: do NOT use meta refresh; redirect via JS for humans only. -->
-  <script>
-    // JS redirect for humans; most preview crawlers do not execute JS.
-    location.replace(${JSON.stringify(openUrl)});
-  </script>
-
-  <noscript>
-    <p>Redirecting… <a href="${escHtml(openUrl)}">Open product page</a></p>
-  </noscript>
+<noscript>
+  <p>Redirecting… <a href="${escapeHtml(redirectUrl)}">Open product page</a></p>
+</noscript>
 </body>
 </html>`;
 }
 
-// ===== Main =====
-if (!fs.existsSync(PRODUCTS_JSON)) {
-  console.error("Missing products.json at:", PRODUCTS_JSON);
-  process.exit(1);
-}
-
-let items = [];
-try {
-  items = JSON.parse(fs.readFileSync(PRODUCTS_JSON, "utf-8"));
-} catch (e) {
-  console.error("products.json parse error:", e);
-  process.exit(1);
-}
-
-if (!Array.isArray(items)) {
-  console.error("products.json must be an array");
-  process.exit(1);
-}
-
-// Optional: clean old outputs to avoid stale pages
-if (fs.existsSync(OUT_DIR)) {
-  fs.rmSync(OUT_DIR, { recursive: true, force: true });
-}
-ensureDir(OUT_DIR);
-
-let count = 0;
-let skipped = 0;
-
-for (const it of items) {
-  const market = normalizeMarket(it.market ?? it.Market ?? it.MARKET);
-  const asin = normalizeAsin(it.asin ?? it.ASIN);
-  const title = safeText(it.title ?? it.Title);
-  const imageUrl = ensureAbsUrl(it.image_url ?? it.imageUrl ?? it.image ?? it.Image);
-
-  // Required fields for previews: market + asin + image_url
-  if (!market || !asin || !imageUrl) {
-    skipped++;
-    continue;
+// -------- main --------
+function main() {
+  if (!fs.existsSync(PRODUCTS_JSON)) {
+    console.error(`[generate] products.json not found: ${PRODUCTS_JSON}`);
+    process.exit(1);
   }
 
-  const marketLower = market.toLowerCase();
-  const asinKey = buildAsinKey(market, asin);
+  const listRaw = readJsonSync(PRODUCTS_JSON);
+  if (!Array.isArray(listRaw)) {
+    console.error("[generate] products.json must be an array");
+    process.exit(1);
+  }
 
-  const dir = path.join(OUT_DIR, marketLower, asinKey);
-  ensureDir(dir);
+  // Normalize fields
+  const products = listRaw.map((p) => ({
+    market: normalizeMarket(p.market ?? p.Market ?? p.MARKET ?? ""),
+    asin: normalizeAsin(p.asin ?? p.ASIN ?? ""),
+    // title intentionally ignored for preview
+    image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
+  }));
 
-  const html = buildHtml({ market, marketLower, asinKey, asin, title, imageUrl });
-  fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
+  // Filter invalid
+  const valid = products.filter((p) => p.market && p.asin);
+  annotateAsinKeys(valid);
 
-  count++;
+  // Ensure OUT_DIR exists (do NOT delete it)
+  ensureDirSync(OUT_DIR);
+
+  let wrote = 0;
+
+  for (const p of valid) {
+    const marketLower = p.market.toLowerCase();
+    const asinKey = p.__asinKey || p.asin;
+
+    const dir = path.join(OUT_DIR, marketLower, asinKey);
+    ensureDirSync(dir);
+
+    const html = buildPreviewHtml({
+      market: p.market,
+      asinKey,
+      imageUrl: p.image_url,
+    });
+
+    const outFile = path.join(dir, "index.html");
+    fs.writeFileSync(outFile, html, "utf8");
+    wrote++;
+  }
+
+  console.log(
+    `[generate] Done. Wrote/updated ${wrote} preview pages into ${OUT_DIR}/ (kept existing pages untouched).`
+  );
+  console.log(`[generate] SITE_ORIGIN=${SITE_ORIGIN}`);
+  console.log(`[generate] PRODUCTS_JSON=${PRODUCTS_JSON}`);
 }
 
-console.log(`Generated ${count} product preview pages under /p`);
-if (skipped) console.log(`Skipped ${skipped} items missing market/asin/image_url`);
+main();
