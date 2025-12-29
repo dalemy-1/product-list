@@ -420,6 +420,25 @@
   const GEO_API = "https://ipapi.co/json/"; // You may replace with another provider you trust
   const GEO_TIMEOUT_MS = 1800;
 
+  function isLinkPreviewBot(){
+  const ua = (navigator.userAgent || "").toLowerCase();
+  // 覆盖常见抓取器：WhatsApp / Telegram / Facebook / Twitter / Discord / Slack 等
+  return (
+    ua.includes("whatsapp") ||
+    ua.includes("telegrambot") ||
+    ua.includes("facebookexternalhit") ||
+    ua.includes("facebot") ||
+    ua.includes("twitterbot") ||
+    ua.includes("discordbot") ||
+    ua.includes("slackbot") ||
+    ua.includes("linkedinbot") ||
+    ua.includes("pinterest") ||
+    ua.includes("embedly") ||
+    ua.includes("googlebot") // 可选：搜索引擎也让它走稳定模式
+  );
+}
+  
+
   // ISO country code -> site Market
   // Note: United Kingdom is GB, not UK.
   const COUNTRY_TO_MARKET = {
@@ -1178,16 +1197,24 @@ try{
   }
 }catch(e){}
 
-    const saved = localStorage.getItem("selectedCountry");
+    let saved = null;
+try { saved = localStorage.getItem("selectedCountry"); } catch(e){}
 
-    if (saved){
-      document.getElementById("countrySelect").value = saved;
-    }else{
-      // Only infer by IP when user has never chosen a market before
-      const guessed = await detectMarketFromIP();
-      document.getElementById("countrySelect").value = guessed;
-      localStorage.setItem("selectedCountry", guessed);
-    }
+const bot = isLinkPreviewBot();
+
+if (saved){
+  // 用户已手动选过国家：永远以用户选择为准
+  document.getElementById("countrySelect").value = saved;
+}else if (bot){
+  // 预览爬虫：不做 IP 定位、不写 localStorage，保持稳定默认 US
+  document.getElementById("countrySelect").value = "US";
+}else{
+  // 真人首次访问：再做 IP 定位
+  const guessed = await detectMarketFromIP();
+  document.getElementById("countrySelect").value = guessed || "US";
+  try { localStorage.setItem("selectedCountry", guessed || "US"); } catch(e){}
+}
+
 
     // Render immediately (so /p/... shows "Loading" instead of "Not found")
     renderByRoute();
@@ -1198,3 +1225,4 @@ try{
 </script>
 </body>
 </html>
+
