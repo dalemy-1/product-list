@@ -157,22 +157,16 @@ function pickBetter(existing, incoming) {
   const exTitleLen = norm(existing.title).length;
   const inTitleLen = norm(incoming.title).length;
 
+  // 让“更靠后（更可能新）”的 CSV 行优先（用于“文档顺序”）
+  const exIdx = Number(existing._idx || 0);
+  const inIdx = Number(incoming._idx || 0);
+
   if (!exLink && inLink) return incoming;
   if (exLink === inLink && !exImg && inImg) return incoming;
   if (exLink === inLink && exImg === inImg && inTitleLen > exTitleLen) return incoming;
+  if (exLink === inLink && exImg === inImg && inTitleLen === exTitleLen && inIdx > exIdx) return incoming;
 
   return existing;
-}
-
-function sameCore(a, b) {
-  // 用于判断是否“内容变化”，决定是否更新 _updated
-  return (
-    upper(a.market) === upper(b.market) &&
-    upper(a.asin) === upper(b.asin) &&
-    norm(a.title) === norm(b.title) &&
-    norm(a.link) === norm(b.link) &&
-    norm(a.image_url) === norm(b.image_url)
-  );
 }
 
 async function fetchText(url) {
@@ -192,7 +186,7 @@ function guessExtFromContentType(ct) {
   const s = String(ct || "").toLowerCase();
   if (s.includes("image/jpeg") || s.includes("image/jpg")) return "jpg";
   if (s.includes("image/png")) return "png";
-  // WhatsApp/FB 对 webp 经常不稳，直接用 placeholder
+  // WhatsApp/FB 预览对 webp 经常不稳：直接回退 placeholder
   return "";
 }
 
@@ -258,10 +252,10 @@ function buildPreviewHtml({ market, asin, ogImageUrl }) {
   const asinKey = String(asin).toUpperCase();
 
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
-  // 独立页不做 302，保持 OG 标签可抓取；页面再跳转到 SPA
+  // 独立页不做 302，保留 OG 标签；页面再 meta refresh / JS 跳转
   const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}`;
 
-  // WhatsApp 预览标题：只要 “US • B07...”
+  // 你要求 WhatsApp 只显示 “US • B07...”
   const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
 
   const ogDesc =
@@ -313,7 +307,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
   ensureDir(outDirAbs);
 
-  // /og 重建（不影响根部的 og-placeholder.jpg）
+  // /og 也重建（只删目录，不影响根部的 og-placeholder.jpg）
   if (fs.existsSync(ogDirAbs)) fs.rmSync(ogDirAbs, { recursive: true, force: true });
   ensureDir(ogDirAbs);
 
@@ -329,7 +323,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     uniq.push(p);
   }
 
-  // 稳定排序输出（仅影响文件写出顺序，不影响你页面里渲染顺序）
+  // 稳定排序输出（文件生成稳定）
   uniq.sort((a, b) => {
     const ma = upper(a.market), mb = upper(b.market);
     if (ma !== mb) return ma.localeCompare(mb);
@@ -348,15 +342,21 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     // 1) OG image download -> /og/{market}/{asin}.jpg|png
     let ogImageUrl = "";
     if (img) {
-      const outNoExt = path.join(ogDirAbs, market.toLowerCase(), asin);
-      const r = await downloadOgImage(img, outNoExt);
-      if (r?.ext) {
-        ogImageUrl = `${SITE_ORIGIN}/${OG_DIR}/${market.toLowerCase()}/${asin}.${r.ext}`;
-        ogOk++;
-        console.log(`[og] ok ${market}/${asin}.${r.ext} (${r.bytes} bytes)`);
-      } else {
+      try {
+        const outNoExt = path.join(ogDirAbs, market.toLowerCase(), asin);
+        const r = await downloadOgImage(img, outNoExt);
+        if (r?.ext) {
+          ogImageUrl = `${SITE_ORIGIN}/${OG_DIR}/${market.toLowerCase()}/${asin}.${r.ext}`;
+          ogOk++;
+          console.log(`[og] ok ${market}/${asin}.${r.ext} (${r.bytes} bytes)`);
+        } else {
+          ogFail++;
+          console.log(`[og] fail ${market}/${asin} -> placeholder`);
+        }
+      } catch {
+        // 关键：绝不让 OG 下载失败导致 workflow 失败
         ogFail++;
-        console.log(`[og] fail ${market}/${asin} -> placeholder`);
+        console.log(`[og] error ${market}/${asin} -> placeholder`);
       }
     } else {
       ogFail++;
@@ -385,10 +385,10 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   console.log("[sync] og out dir       =", siteJoin(OG_DIR));
   console.log("[sync] og placeholder   =", OG_PLACEHOLDER_URL);
 
-  // placeholder 文件不存在也不致命，但会导致预览无图
+  // placeholder 文件建议存在（不存在也不阻塞工作流）
   const placeholderAbs = siteJoin(OG_PLACEHOLDER_PATH);
   if (!fs.existsSync(placeholderAbs)) {
-    console.warn(`[warn] ${OG_PLACEHOLDER_PATH} not found at site root. Please add it to your published root.`);
+    console.warn(`[warn] ${OG_PLACEHOLDER_PATH} not found at site root. Add it to repo root (or product-list root).`);
   }
 
   const csvText = await fetchText(CSV_URL);
@@ -418,65 +418,69 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   const activeMap = new Map();
   let dupActive = 0;
 
-  // 关键：给每行一个顺序索引 _idx（后面可按文档顺序排序）
-  for (let i = 0; i < dataRows.length; i++) {
-    const r = dataRows[i];
+  const nowTs = Date.now();
+
+  // 关键：记录 CSV 顺序（0..n-1）。若你的“新产品”是追加到 CSV 末尾，
+  // 前端用 _idx 倒序即可让新产品在上。
+  let rowIdx = 0;
+
+  for (const r of dataRows) {
     const o = mapRow(headers, r);
 
     const market = normalizeMarket(o.market || o.Market || o.MARKET);
     const asin = normalizeAsin(o.asin || o.ASIN);
-    if (!market || !asin) continue;
+    if (!market || !asin) { rowIdx++; continue; }
 
     const title = norm(o.title || o.Title || "");
     const link = normalizeUrl(o.link || o.Link);
     const image_url = norm(o.image_url || o.image || o.Image || o.imageUrl || "");
 
-    const csvIdx = i + 1; // 1-based
-
     // 非 Amazon（纯数字）-> archive
     if (isNonAmazonByAsin(asin)) {
-      const item = { market, asin, title, link, image_url, _hidden_reason: "non_amazon_numeric_asin", _idx: csvIdx };
+      const item = { market, asin, title, link, image_url, _idx: rowIdx, _hidden_reason: "non_amazon_numeric_asin" };
       const k = keyOf(item);
       if (!archiveMap.has(k)) archiveMap.set(k, item);
+      rowIdx++;
       continue;
     }
 
     // status 下架 -> archive
     const statusVal = o.status ?? o.Status ?? o.STATUS;
     if (!isActiveStatus(statusVal)) {
-      const item = { market, asin, title, link, image_url, _hidden_reason: "inactive_status", _idx: csvIdx };
+      const item = { market, asin, title, link, image_url, _idx: rowIdx, _hidden_reason: "inactive_status" };
       const k = keyOf(item);
       if (!archiveMap.has(k)) archiveMap.set(k, item);
+      rowIdx++;
       continue;
     }
 
     // 上架 -> active 去重
-    const nowTs = Date.now();
-    const prev = prevMap.get(`${market}|${asin}`) || prevMap.get(keyOf({ market, asin })) || null;
-
-    const incomingCore = { market, asin, title, link, image_url };
-    const changed = !prev ? true : !sameCore(prev, incomingCore);
+    const prev = prevMap.get(keyOf({ market, asin })) || null;
 
     const item = {
-      ...incomingCore,
-      // 文档顺序（每次同步刷新为最新 CSV 行号；如果你希望“首次出现顺序固定”，把这里改成 prev?._idx ?? csvIdx）
-      _idx: csvIdx,
-      // 最近更新时间：只在“新增/变更”时更新，未变更则保留
-      _updated: changed ? nowTs : (prev?._updated ?? nowTs),
-      // 首次出现时间（可选）
-      _ts: prev?._ts ?? nowTs,
+      market,
+      asin,
+      title,
+      link,
+      image_url,
+      _idx: rowIdx,                 // CSV 顺序（用于 tie-break）
+      _ts: prev?._ts || nowTs,       // 首次出现时间（可选）
+      _updated: nowTs,               // 每次同步刷新（用于“新到旧”排序）
     };
 
     const k = keyOf(item);
-    if (!activeMap.has(k)) {
-      activeMap.set(k, item);
-    } else {
+
+    if (!activeMap.has(k)) activeMap.set(k, item);
+    else {
       dupActive++;
       activeMap.set(k, pickBetter(activeMap.get(k), item));
     }
+
+    rowIdx++;
   }
 
-  // ✅ products.json：按“最近更新”倒序（新到旧）；同更新时间再按文档顺序（后面的更新）倒序
+  // products.json 本身不强制排序（前端会按 _updated/_idx 排），
+  // 但这里给一个“新到旧”默认排序方便你直接看 JSON
   const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
     const ua = Number(a._updated || 0);
     const ub = Number(b._updated || 0);
@@ -486,7 +490,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     return ib - ia;
   });
 
-  // 从 active 消失的旧数据 -> archive（保留独立页可打开）
+  // 从 active 消失的旧数据 -> archive
   const nextKeys = new Set(nextProducts.map(keyOf));
   let removedCount = 0;
   for (const [k, oldP] of prevMap.entries()) {
@@ -496,11 +500,10 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     }
   }
 
-  // archive 不需要严格顺序；为了可读性做稳定排序
   const nextArchive = Array.from(archiveMap.values()).sort((a, b) => {
-    const am = upper(a.market).localeCompare(upper(b.market));
+    const am = a.market.localeCompare(b.market);
     if (am) return am;
-    return upper(a.asin).localeCompare(upper(b.asin));
+    return a.asin.localeCompare(b.asin);
   });
 
   console.log("[sync] next active =", nextProducts.length);
@@ -512,11 +515,16 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   writeJsonPretty(ARCHIVE_PATH, nextArchive);
   console.log("[sync] wrote products.json & archive.json");
 
-  // 生成 /p + /og（即使 og 下载大量失败，也不会让 workflow 失败）
-  await generatePPagesAndOgImages(nextProducts, nextArchive);
+  // 生成 /p + /og：无论 OG 成功与否都不应失败
+  try {
+    await generatePPagesAndOgImages(nextProducts, nextArchive);
+  } catch (e) {
+    console.warn("[warn] generate /p or /og failed, but continuing:", e?.message || e);
+  }
 
   console.log("[done] sync + generate /p pages + /og images completed");
 })().catch((err) => {
+  // 只在“核心链路”失败时才失败：CSV 拉取/解析等
   console.error("[fatal]", err?.stack || err);
   process.exit(1);
 });
