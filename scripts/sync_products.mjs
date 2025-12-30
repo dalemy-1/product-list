@@ -391,8 +391,14 @@ function buildPreviewHtml({ market, asinKey, imageUrl }) {
 
 
 function generatePPages(activeList, archiveList) {
-  const outDirAbs = path.isAbsolute(OUT_DIR) ? OUT_DIR : path.join(ROOT, OUT_DIR);
+    const outDirAbs = path.isAbsolute(OUT_DIR) ? OUT_DIR : path.join(ROOT, OUT_DIR);
+
+  // 每次全量重建 /p，避免旧页面残留（非常关键）
+  if (fs.existsSync(outDirAbs)) {
+    fs.rmSync(outDirAbs, { recursive: true, force: true });
+  }
   ensureDir(outDirAbs);
+
 
   const all = [...(activeList || []), ...(archiveList || [])].filter((p) => p && p.market && p.asin);
 
