@@ -152,6 +152,16 @@ function isActiveStatus(v) {
   if (!s) return true; // CSV 未填 status => 默认上架
   return ["1", "true", "yes", "on", "active", "enabled", "publish", "published", "online"].includes(s);
 }
+function isAllDigits(s) {
+  const x = norm(s);
+  return x !== "" && /^[0-9]+$/.test(x);
+}
+
+// 你的规则：纯数字 => 其它平台（Walmart 等），不展示
+function isNonAmazonByAsin(asin) {
+  return isAllDigits(asin);
+}
+
 
 function keyOf(p) {
   return `${upper(p.market)}|${upper(p.asin)}`;
@@ -311,12 +321,31 @@ function generatePPages(activeList, archiveList) {
 
   // Build new active list from CSV (source of truth)
   const nextProducts = [];
-  for (const r of dataRows) {
+    for (const r of dataRows) {
     const o = mapRow(headers, r);
 
     const market = normalizeMarket(o.market || o.Market || o.MARKET);
     const asin = normalizeAsin(o.asin || o.ASIN);
     if (!market || !asin) continue;
+
+    // ✅ 规则：纯数字 ASIN => 非 Amazon（Walmart 等），直接隐藏（不进入 products.json）
+    if (isNonAmazonByAsin(asin)) {
+      // 可选：放进 archive.json，方便后续你想恢复展示
+      const link = normalizeUrl(o.link || o.Link);
+      const image_url = norm(o.image_url || o.image || o.Image || o.imageUrl || "");
+      const nonAmazonItem = {
+        market,
+        asin,
+        title: norm(o.title || o.Title || ""),
+        link,
+        image_url,
+        // 可选标记（前端不依赖，不影响）
+        _hidden_reason: "non_amazon_numeric_asin",
+      };
+      const k = keyOf(nonAmazonItem);
+      if (!archiveMap.has(k)) archiveMap.set(k, nonAmazonItem);
+      continue;
+    }
 
     const statusVal = o.status ?? o.Status ?? o.STATUS;
     if (!isActiveStatus(statusVal)) continue;
@@ -332,6 +361,7 @@ function generatePPages(activeList, archiveList) {
       image_url,
     });
   }
+
 
   nextProducts.sort((a, b) => {
     const am = a.market.localeCompare(b.market);
