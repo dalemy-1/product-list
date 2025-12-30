@@ -581,11 +581,15 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   }
 
   // products.json 给一个“新到旧”默认排序（前端也可再排序）
-  const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
-    return Number(b._idx || 0) - Number(a._idx || 0);
-  });
-
-  // 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
+  // products.json 必须保持“新 → 旧”的顺序：
+// 你的前端在去重时是“保留第一个”，如果这里是正序（旧→新），新行会被去重丢掉，导致新产品跑到最后/看不到。
+// 规则：CSV 中越靠后越新，因此 _idx 越大越新；按 _idx 倒序输出即可。
+const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
+  const ia = Number(a._idx || 0);
+  const ib = Number(b._idx || 0);
+  return ib - ia; // 倒序：新在前
+});
+// 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
   const nextKeys = new Set(nextProducts.map(keyOf));
   let removedCount = 0;
   for (const [k, oldP] of prevMap.entries()) {
