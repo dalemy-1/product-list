@@ -166,7 +166,7 @@ function pickBetter(existing, incoming) {
   const exRemarkLen = norm(existing.remark).length;
   const inRemarkLen = norm(incoming.remark).length;
 
-  // 让“更靠后（更可能新）”的 CSV 行优先（用于“文档顺序”）
+  // 让“更靠前（CSV 顶部）”的行优先（你的 CSV：靠前=新；用于保持文档顺序）
   const exIdx = Number(existing._idx || 0);
   const inIdx = Number(incoming._idx || 0);
 
@@ -179,8 +179,8 @@ function pickBetter(existing, incoming) {
   if (exLink === inLink && exImg === inImg && inTitleLen === exTitleLen && inKeyLen === exKeyLen && inStoreLen > exStoreLen) return incoming;
   if (exLink === inLink && exImg === inImg && inTitleLen === exTitleLen && inKeyLen === exKeyLen && inStoreLen === exStoreLen && inRemarkLen > exRemarkLen) return incoming;
 
-  // 最后按 CSV 行号优先（更靠后更优先）
-  if (exLink === inLink && exImg === inImg && inTitleLen === exTitleLen && inIdx > exIdx) return incoming;
+  // 最后按 CSV 行号优先（更靠前更优先）
+  if (exLink === inLink && exImg === inImg && inTitleLen === exTitleLen && inIdx < exIdx) return incoming;
 
   return existing;
 }
@@ -580,16 +580,12 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     rowIdx++;
   }
 
-  // products.json 给一个“新到旧”默认排序（前端也可再排序）
-  // products.json 必须保持“新 → 旧”的顺序：
-// 你的前端在去重时是“保留第一个”，如果这里是正序（旧→新），新行会被去重丢掉，导致新产品跑到最后/看不到。
-// 规则：CSV 中越靠后越新，因此 _idx 越大越新；按 _idx 倒序输出即可。
-const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
-  const ia = Number(a._idx || 0);
-  const ib = Number(b._idx || 0);
-  return ib - ia; // 倒序：新在前
-});
-// 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
+  // products.json 按 CSV 原始顺序输出（你的 CSV：靠前=新，列表应保持该顺序）
+  const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
+    return Number(a._idx || 0) - Number(b._idx || 0);
+  });
+
+  // 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
   const nextKeys = new Set(nextProducts.map(keyOf));
   let removedCount = 0;
   for (const [k, oldP] of prevMap.entries()) {
