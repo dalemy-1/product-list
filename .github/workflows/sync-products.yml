@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
 
-# 不再互相 cancel，避免出现 “The operation was canceled”
 concurrency:
   group: sync-products
   cancel-in-progress: false
@@ -36,7 +35,7 @@ jobs:
           echo "[workflow] CSV_URL=$CSV_URL"
           node scripts/sync_products.mjs
 
-            - name: Commit changes (only if changed)
+      - name: Commit changes (only if changed)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -56,4 +55,3 @@ jobs:
 
           # 再推送
           git push origin HEAD:main
-
