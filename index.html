@@ -91,7 +91,7 @@
   .search-input{ min-width:min(420px, 90vw); }
   .wrap{ max-width:1200px; margin:14px auto 26px; padding:0 12px; }
 
-  /* ===== Homepage Hero (risk-control friendly) ===== */
+  /* ===== Homepage Hero ===== */
   .hero{
     margin-top:12px;
     background:#fff;
@@ -220,10 +220,9 @@
   }
   .product-image:hover{ transform:scale(1.02); }
 
-  /* 不展示 ASIN 行，但复制仍包含 ASIN */
+  /* 列表页不展示 ASIN 行（复制仍含 ASIN） */
   .asin{ display:none !important; }
 
-  /* advisor 更短 */
   .why{
     width:100%;
     max-width:360px;
@@ -375,7 +374,7 @@
       We do not sell products directly and do not process orders or payments.
     </p>
     <div class="hint">
-      Need help identifying an item? Use <strong>Contact / Copy</strong> to copy Title / ASIN / Market and reach us for general assistance.
+      Need help identifying an item? Use <strong>Contact / Copy</strong> to copy ASIN / Market and reach us for general assistance.
       See <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noopener">Terms</a>.
     </div>
   </section>
@@ -425,9 +424,7 @@
   </div>
 
   <div class="grid" id="productGrid"></div>
-
   <div class="empty" id="emptyHint" style="display:none;"></div>
-
   <div id="detailPage" style="display:none;"></div>
 
 </div>
@@ -438,7 +435,7 @@
 
     <h3 style="margin:0 0 10px 0;">Contact & Copy</h3>
     <div style="font-size:13px;color:#6b7280;margin-bottom:8px;">
-      Copy only Title / ASIN / Market. Contact buttons are for consultation and do not include Amazon links.
+      Copy only ASIN / Market. Contact buttons are for consultation and do not include Amazon links.
     </div>
 
     <div id="contactPreview"
@@ -453,7 +450,7 @@
     </div>
 
     <div class="mini-hint">
-      For purchase, use the “View on Amazon” button on the product card. Final pricing and availability are provided by Amazon on the destination page.
+      For purchase, use the “View on Amazon” button. Final pricing and availability are provided by Amazon on the destination page.
     </div>
   </div>
 </div>
@@ -477,11 +474,18 @@
      Root has products.json. */
   const PRODUCTS_JSON_PATH = "/products.json";
 
+  /* Archive fallback for delisted products:
+     If a product is removed from products.json (not shown in list),
+     detail page will still work by looking up in archive.json. */
+  const ARCHIVE_JSON_PATH = "/archive.json";
+
   const WA_PHONE = "8615778673666";
   const TG_USERNAME = "dalemyrong";
   const EMAIL_CONTACT = "info@dalemy.top";
 
-  const AUTO_REFRESH_MS = 60 * 1000;
+  /* Faster UI refresh (front-end side).
+     Note: overall latency still depends on GitHub Actions + Pages deployment. */
+  const AUTO_REFRESH_MS = 30 * 1000;
 
   // === IP Geo (best-effort) ===
   // Purpose: suggest a default Market based on user's IP country.
@@ -547,6 +551,10 @@
   let CURRENT_CONTACT_PRODUCT = null;
   let LAST_LOAD_ERROR = "";
   let IS_LOADING = false;
+
+  // Archive cache
+  let ARCHIVE_PRODUCTS = null;
+  let ARCHIVE_LOAD_ERROR = "";
 
   const PLACEHOLDER_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
@@ -735,7 +743,7 @@
     const safe = {
       market: p.market || "",
       asin: p.asin || "",
-      title: p.title || "",
+      title: "",          // 强制不透传 title（防止误显示）
       link: p.link || "",
       image_url: p.image_url || "",
       __idx: p.__idx ?? 0,
@@ -743,6 +751,32 @@
     };
     return JSON.stringify(safe)
       .replaceAll("&","\\u0026").replaceAll("<","\\u003c").replaceAll(">","\\u003e");
+  }
+
+  async function fetchArchiveIfNeeded(){
+    if (ARCHIVE_PRODUCTS !== null) return; // already loaded (even if empty)
+    ARCHIVE_LOAD_ERROR = "";
+    try{
+      const url = ARCHIVE_JSON_PATH + "?ts=" + Date.now();
+      const res = await fetch(url, { cache:"no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const list = await res.json();
+      if (!Array.isArray(list)) throw new Error("archive.json is not an array");
+
+      ARCHIVE_PRODUCTS = list.map((p, idx) => ({
+        market: String(p.market ?? p.Market ?? "").trim().toUpperCase(),
+        asin: String(p.asin ?? p.ASIN ?? "").trim(),
+        title: "", // archive 里也不展示 title
+        link: String(p.link ?? p.Link ?? "").trim(),
+        image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
+        __idx: idx
+      }));
+      annotateAsinKeys(ARCHIVE_PRODUCTS);
+    }catch(err){
+      ARCHIVE_PRODUCTS = []; // avoid retry storm
+      ARCHIVE_LOAD_ERROR = err.message || String(err);
+      console.warn("archive load failed:", ARCHIVE_LOAD_ERROR);
+    }
   }
 
   function fetchProductData(manual=false){
@@ -762,9 +796,9 @@
         ALL_PRODUCTS = list.map((p, idx) => ({
           market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
           asin: String(p.asin ?? p.ASIN ?? "").trim(),
-          title: String(p.title ?? p.Title ?? "").trim(),
+          title: String(p.title ?? p.Title ?? "").trim(), // 仅用于搜索/分类，不用于展示
           link: String(p.link ?? p.Link ?? "").trim(),
-          image_url: String(p.image_url ?? p.image_url ?? p.image ?? p.Image ?? "").trim(),
+          image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
           __idx: idx
         }));
 
@@ -1004,21 +1038,35 @@
     document.title = "Loading… • Product Picks";
   }
 
-  function renderByRoute(){
+  async function renderByRoute(){
     const route = parseRoute();
+
     if (route.type === "product"){
       if ((IS_LOADING || !LAST_LOADED_AT) && !LAST_LOAD_ERROR){
         renderProductLoading(route);
         return;
       }
-      const prod = findProductByRoute(ALL_PRODUCTS, route.market, route.key);
+
+      // 1) try products.json
+      let prod = findProductByRoute(ALL_PRODUCTS, route.market, route.key);
+
+      // 2) fallback to archive.json for delisted products
+      if (!prod){
+        await fetchArchiveIfNeeded();
+        if (ARCHIVE_PRODUCTS && ARCHIVE_PRODUCTS.length){
+          prod = findProductByRoute(ARCHIVE_PRODUCTS, route.market, route.key);
+        }
+      }
+
       if (!prod){
         renderNotFound(route);
         return;
       }
+
       renderDetail(prod, route.market, route.key);
       return;
     }
+
     showList();
     renderGrid();
   }
@@ -1026,6 +1074,11 @@
   function renderNotFound(route){
     showDetail();
     const box = document.getElementById("detailPage");
+    const extra = ARCHIVE_LOAD_ERROR
+      ? `<div class="detail-note" style="margin-top:10px;">
+          Archive fallback failed: <code>${escapeHtml(ARCHIVE_LOAD_ERROR)}</code>
+        </div>`
+      : "";
     box.innerHTML = `
       <div class="detail-wrap">
         <div class="detail-top">
@@ -1040,6 +1093,7 @@
           <div class="detail-note">
             This product reference may have been removed or moved. Please return to the list and search again.
           </div>
+          ${extra}
         </div>
       </div>
     `;
@@ -1051,7 +1105,8 @@
 
     const market = normalizeMarket(marketRaw);
     const asinKey = String(keyRaw || p.__asinKey || "").trim();
-    const title = ""; // keep empty on purpose
+
+    // 强制不使用 title（彻底移除独立页标题显示）
     const link = normalizeUrl(p.link);
     const imgRaw = String(p.image_url || "").trim();
     const imgSrc = initialImageUrl(imgRaw);
@@ -1161,7 +1216,7 @@
   }
 
   function onMarketChange(){
-    localStorage.setItem("selectedCountry", currentMarket());
+    try{ localStorage.setItem("selectedCountry", currentMarket()); }catch(e){}
     renderGrid();
   }
 
@@ -1180,16 +1235,15 @@
     });
   }
 
+  // === Copy info: ONLY ASIN + Market (NO title) ===
   function buildCopyInfo(product){
-  const market = String(product.market || "").trim().toUpperCase();
-  const asin = String(product.asin || "").trim();
-
-  const lines = [];
-  if (asin) lines.push(`ASIN: ${asin}`);
-  if (market) lines.push(`Market: ${market}`);
-  return lines.join("\n");
-}
-
+    const market = String(product.market || "").trim().toUpperCase();
+    const asin = String(product.asin || "").trim();
+    const lines = [];
+    if (asin) lines.push(`ASIN: ${asin}`);
+    if (market) lines.push(`Market: ${market}`);
+    return lines.join("\n");
+  }
 
   function buildContactText(product){
     const base = buildCopyInfo(product);
@@ -1247,7 +1301,7 @@
     copyText(text).then(() => alert("Copied!")).catch(() => alert("Copy failed"));
   }
 
-  window.addEventListener("popstate", () => renderByRoute());
+  window.addEventListener("popstate", () => { renderByRoute(); });
 
   window.onload = async function(){
     restoreSpaPathIfAny();
@@ -1279,7 +1333,7 @@
     }
 
     // Render immediately (so /p/... shows "Loading" instead of "Not found")
-    renderByRoute();
+    await renderByRoute();
 
     fetchProductData(false);
     setInterval(() => fetchProductData(false), AUTO_REFRESH_MS);
@@ -1287,5 +1341,3 @@
 </script>
 </body>
 </html>
-
-
