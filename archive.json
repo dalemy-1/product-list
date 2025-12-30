@@ -666,6 +666,16 @@
   },
   {
     "market": "UK",
+    "asin": "B0F487VGDM",
+    "title": "英国高频仪",
+    "link": "https://amzn.to/4ogaedF",
+    "image_url": "https://m.media-amazon.com/images/I/619XAoHtFAL._AC_SX425_.jpg",
+    "_idx": 4,
+    "_ts": 1767094189256,
+    "_updated": 1767094189256
+  },
+  {
+    "market": "UK",
     "asin": "B0F5QGR68Z",
     "title": "英国铅坠套装图评",
     "link": "https://amzn.to/43Oevhi",
@@ -1110,6 +1120,16 @@
   },
   {
     "market": "US",
+    "asin": "B0C5MJ15CY",
+    "title": "美国电动预卷机",
+    "link": "https://amzn.to/4pIHADx",
+    "image_url": "https://m.media-amazon.com/images/I/71JWshkp+WL._AC_SX679_.jpg",
+    "_idx": 24,
+    "_ts": 1767092993891,
+    "_updated": 1767094189256
+  },
+  {
+    "market": "US",
     "asin": "B0CN88KJCC",
     "title": "美国排气扇",
     "link": "https://amzn.to/4pLrDwD",
@@ -1187,6 +1207,16 @@
   },
   {
     "market": "US",
+    "asin": "B0DQ5BHRLS",
+    "title": "美国椅垫图评",
+    "link": "https://amzn.to/4p45BEI",
+    "image_url": "https://m.media-amazon.com/images/I/71AQVU3ghbL._AC_SX522_.jpg",
+    "_idx": 29,
+    "_ts": 1767088547167,
+    "_updated": 1767094189256
+  },
+  {
+    "market": "US",
     "asin": "B0DSF75WVR",
     "title": "美国负面佣金",
     "link": "https://amzn.to/4og4YGX",
@@ -1254,6 +1284,16 @@
     "title": "美国污水泵",
     "link": "https://amzn.to/3KrTbHI",
     "image_url": "https://m.media-amazon.com/images/I/61q-S+WB+4L._AC_SY300_SX300_QL70_FMwebp_.jpg"
+  },
+  {
+    "market": "US",
+    "asin": "B0F298G4YP",
+    "title": "美国椅垫图评",
+    "link": "https://amzn.to/4p09ASJ",
+    "image_url": "https://m.media-amazon.com/images/I/81EusYOhfkL._AC_SX679_.jpg",
+    "_idx": 28,
+    "_ts": 1767088547167,
+    "_updated": 1767094189256
   },
   {
     "market": "US",
