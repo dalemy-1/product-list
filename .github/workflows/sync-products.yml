@@ -37,6 +37,7 @@ jobs:
           echo "[workflow] CSV_URL=$CSV_URL"
           node scripts/sync_products.mjs
 
+
       - name: Commit changes (only if changed)
         run: |
           set -e
