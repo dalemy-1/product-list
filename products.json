@@ -932,6 +932,13 @@
   },
   {
     "market": "UK",
+    "asin": "B0FXX1WNNF",
+    "title": "英国椅套",
+    "link": "https://amzn.to/49c1PTj",
+    "image_url": "https://m.media-amazon.com/images/I/51Ea5-mwsfL._AC_SX679_.jpg"
+  },
+  {
+    "market": "UK",
     "asin": "B0FY4Q6H7G",
     "title": "英国消肿贴",
     "link": "https://amzn.to/4rlf2kG",
@@ -1632,6 +1639,20 @@
   },
   {
     "market": "US",
+    "asin": "B0FQBRQN8H",
+    "title": "美国相机背带",
+    "link": "https://amzn.to/3M0Pj0W",
+    "image_url": "https://m.media-amazon.com/images/I/71q1KV-C95L._AC_SX679_.jpg"
+  },
+  {
+    "market": "US",
+    "asin": "B0FQBRQN8H",
+    "title": "美国相机背带图评",
+    "link": "https://amzn.to/4830leC",
+    "image_url": "https://m.media-amazon.com/images/I/71q1KV-C95L._AC_SX679_.jpg"
+  },
+  {
+    "market": "US",
     "asin": "B0FQHXW529",
     "title": "美国积木免评点星",
     "link": "https://amzn.to/4q0I1tc",
@@ -1674,10 +1695,10 @@
   },
   {
     "market": "US",
-    "asin": "B0FRS2YBMX",
-    "title": "美国饰相框",
-    "link": "https://amzn.to/3KSF1zB",
-    "image_url": "https://m.media-amazon.com/images/I/71zNC6KuE1L._AC_SL1500_.jpg"
+    "asin": "B0FRQ8T1MR",
+    "title": "美国CD 播放器",
+    "link": "https://amzn.to/43xMryz",
+    "image_url": "https://m.media-amazon.com/images/I/71vZ6a4B34L._AC_SL1500_.jpg"
   },
   {
     "market": "US",
