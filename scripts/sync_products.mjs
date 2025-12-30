@@ -582,7 +582,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
 
   // products.json 给一个“新到旧”默认排序（前端也可再排序）
   const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
-    return Number(a._idx || 0) - Number(b._idx || 0);
+    return Number(b._idx || 0) - Number(a._idx || 0);
   });
 
   // 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
