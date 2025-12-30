@@ -26,7 +26,6 @@ if (!CSV_URL) {
 
 const SITE_ORIGIN = (process.env.SITE_ORIGIN || "https://ama.omino.top").replace(/\/+$/, "");
 
-// Auto-detect site dir (GitHub Pages root folder)
 const ROOT = process.cwd();
 const SITE_DIR = (() => {
   const explicit = (process.env.SITE_DIR || "").trim();
@@ -34,9 +33,7 @@ const SITE_DIR = (() => {
   if (
     fs.existsSync(path.join(ROOT, "product-list", "index.html")) ||
     fs.existsSync(path.join(ROOT, "product-list", "products.json"))
-  ) {
-    return "product-list";
-  }
+  ) return "product-list";
   return "";
 })();
 
@@ -47,7 +44,6 @@ function siteJoin(...segs) {
 const PRODUCTS_PATH = siteJoin("products.json");
 const ARCHIVE_PATH = siteJoin("archive.json");
 
-// OUT_DIR is relative to SITE_DIR
 const OUT_DIR = (() => {
   const explicit = (process.env.OUT_DIR || "").trim();
   if (explicit) return explicit.replace(/^\/+/, "");
@@ -55,23 +51,15 @@ const OUT_DIR = (() => {
 })();
 
 // OG output
-const OG_DIR = "og"; // relative to SITE_DIR
-const OG_PLACEHOLDER_PATH = "og-placeholder.jpg"; // must exist at site root (repo root / product-list root)
+const OG_DIR = "og";
+const OG_PLACEHOLDER_PATH = "og-placeholder.jpg"; // file should exist at site root
 const OG_PLACEHOLDER_URL = `${SITE_ORIGIN}/${OG_PLACEHOLDER_PATH}`;
 
 // ================== HELPERS ==================
-function norm(s) {
-  return String(s ?? "").trim();
-}
-function upper(s) {
-  return norm(s).toUpperCase();
-}
-function normalizeMarket(v) {
-  return upper(v);
-}
-function normalizeAsin(v) {
-  return upper(v);
-}
+function norm(s) { return String(s ?? "").trim(); }
+function upper(s) { return norm(s).toUpperCase(); }
+function normalizeMarket(v) { return upper(v); }
+function normalizeAsin(v) { return upper(v); }
 
 function normalizeUrl(v) {
   const s = norm(v);
@@ -79,10 +67,7 @@ function normalizeUrl(v) {
   if (/^https?:\/\//i.test(s)) return s;
   return "";
 }
-
-function safeHttps(url) {
-  return norm(url).replace(/^http:\/\//i, "https://");
-}
+function safeHttps(url) { return norm(url).replace(/^http:\/\//i, "https://"); }
 
 function safeReadJson(file, fallback) {
   try {
@@ -99,9 +84,7 @@ function writeJsonPretty(file, obj) {
   fs.writeFileSync(file, json, "utf8");
 }
 
-function ensureDir(p) {
-  fs.mkdirSync(p, { recursive: true });
-}
+function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -115,76 +98,39 @@ function escapeHtml(str) {
 // Minimal CSV parser supporting quoted fields and commas inside quotes.
 function parseCSV(text) {
   const rows = [];
-  let i = 0;
-  let field = "";
-  let row = [];
-  let inQuotes = false;
+  let i = 0, field = "", row = [], inQuotes = false;
 
   while (i < text.length) {
     const c = text[i];
 
     if (inQuotes) {
       if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
       }
-      field += c;
-      i++;
-      continue;
+      field += c; i++; continue;
     }
 
-    if (c === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (c === ",") {
-      row.push(field);
-      field = "";
-      i++;
-      continue;
-    }
-    if (c === "\r") {
-      i++;
-      continue;
-    }
-    if (c === "\n") {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-      i++;
-      continue;
-    }
+    if (c === '"') { inQuotes = true; i++; continue; }
+    if (c === ",") { row.push(field); field = ""; i++; continue; }
+    if (c === "\r") { i++; continue; }
+    if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
 
-    field += c;
-    i++;
+    field += c; i++;
   }
-
-  if (field.length || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
   return rows;
 }
 
 function mapRow(headers, cells) {
   const obj = {};
-  headers.forEach((h, idx) => {
-    obj[h] = norm(cells[idx] ?? "");
-  });
+  headers.forEach((h, idx) => { obj[h] = norm(cells[idx] ?? ""); });
   return obj;
 }
 
 function isActiveStatus(v) {
   const s = norm(v).toLowerCase();
-  if (!s) return true; // CSV 未填 status => 默认上架
+  if (!s) return true;
   return ["1", "true", "yes", "on", "active", "enabled", "publish", "published", "online"].includes(s);
 }
 
@@ -192,21 +138,13 @@ function isAllDigits(s) {
   const x = norm(s);
   return x !== "" && /^[0-9]+$/.test(x);
 }
+function isNonAmazonByAsin(asin) { return isAllDigits(asin); }
 
-// 纯数字 => 其它平台（Walmart 等），不展示（隐藏进 archive）
-function isNonAmazonByAsin(asin) {
-  return isAllDigits(asin);
-}
+function keyOf(p) { return `${upper(p.market)}|${upper(p.asin)}`; }
 
-function keyOf(p) {
-  return `${upper(p.market)}|${upper(p.asin)}`;
-}
+function isValidHttpUrl(u) { return /^https?:\/\//i.test(norm(u)); }
 
-function isValidHttpUrl(u) {
-  return /^https?:\/\//i.test(norm(u));
-}
-
-// 同 market+asin 只保留一个；如果后来的更完整则替换
+// 简单去重：同 market+asin 只保留一个；如果后来的更完整则替换
 function pickBetter(existing, incoming) {
   if (!existing) return incoming;
 
@@ -226,6 +164,17 @@ function pickBetter(existing, incoming) {
   return existing;
 }
 
+function sameCore(a, b) {
+  // 用于判断是否“内容变化”，决定是否更新 _updated
+  return (
+    upper(a.market) === upper(b.market) &&
+    upper(a.asin) === upper(b.asin) &&
+    norm(a.title) === norm(b.title) &&
+    norm(a.link) === norm(b.link) &&
+    norm(a.image_url) === norm(b.image_url)
+  );
+}
+
 async function fetchText(url) {
   const res = await fetch(url, {
     headers: {
@@ -243,7 +192,7 @@ function guessExtFromContentType(ct) {
   const s = String(ct || "").toLowerCase();
   if (s.includes("image/jpeg") || s.includes("image/jpg")) return "jpg";
   if (s.includes("image/png")) return "png";
-  // WhatsApp/FB 对 webp 经常不稳：直接当失败，用 placeholder
+  // WhatsApp/FB 对 webp 经常不稳，直接用 placeholder
   return "";
 }
 
@@ -252,17 +201,16 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     return await fetch(url, { ...opts, signal: ctrl.signal });
-  } catch {
-    return null;
   } finally {
     clearTimeout(t);
   }
 }
 
 /**
- * Download a single OG image:
- * - Never throws (returns null on failure)
- * - Timeout + retry (2x)
+ * 下载单张OG图：
+ * - 永不抛异常（失败返回 null）
+ * - 超时中断
+ * - 重试 2 次
  */
 async function downloadOgImage(imageUrl, outAbsNoExt) {
   const url = safeHttps(imageUrl);
@@ -310,19 +258,16 @@ function buildPreviewHtml({ market, asin, ogImageUrl }) {
   const asinKey = String(asin).toUpperCase();
 
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
-
-  // 独立页保持 OG 标签可被抓取；页面再用 meta refresh / JS 跳转
+  // 独立页不做 302，保持 OG 标签可抓取；页面再跳转到 SPA
   const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}`;
 
-  // ✅ WhatsApp 预览标题：只要 “US • B07XXXXXXX”
+  // WhatsApp 预览标题：只要 “US • B07...”
   const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
 
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
 
   const ogImage = ogImageUrl || OG_PLACEHOLDER_URL;
-
-  // WhatsApp/FB 抓取更稳定：补齐 type/width/height
   const ogType = ogImage.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
 
   return `<!doctype html>
@@ -384,7 +329,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     uniq.push(p);
   }
 
-  // 稳定排序（输出稳定，和列表排序无关）
+  // 稳定排序输出（仅影响文件写出顺序，不影响你页面里渲染顺序）
   uniq.sort((a, b) => {
     const ma = upper(a.market), mb = upper(b.market);
     if (ma !== mb) return ma.localeCompare(mb);
@@ -393,9 +338,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     return 0;
   });
 
-  let pageCount = 0;
-  let ogOk = 0;
-  let ogFail = 0;
+  let pageCount = 0, ogOk = 0, ogFail = 0;
 
   for (const p of uniq) {
     const market = upper(p.market);
@@ -442,10 +385,10 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   console.log("[sync] og out dir       =", siteJoin(OG_DIR));
   console.log("[sync] og placeholder   =", OG_PLACEHOLDER_URL);
 
-  // placeholder 文件存在性提醒（不会中断）
+  // placeholder 文件不存在也不致命，但会导致预览无图
   const placeholderAbs = siteJoin(OG_PLACEHOLDER_PATH);
   if (!fs.existsSync(placeholderAbs)) {
-    console.warn(`[warn] ${OG_PLACEHOLDER_PATH} not found at site root. Please add it (repo root / product-list root).`);
+    console.warn(`[warn] ${OG_PLACEHOLDER_PATH} not found at site root. Please add it to your published root.`);
   }
 
   const csvText = await fetchText(CSV_URL);
@@ -472,11 +415,12 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   const archiveMap = new Map();
   prevArchive.forEach((p) => archiveMap.set(keyOf(p), p));
 
-  // Active 用 Map 去重（同 market+asin 只保留一个）
   const activeMap = new Map();
   let dupActive = 0;
 
-  for (const r of dataRows) {
+  // 关键：给每行一个顺序索引 _idx（后面可按文档顺序排序）
+  for (let i = 0; i < dataRows.length; i++) {
+    const r = dataRows[i];
     const o = mapRow(headers, r);
 
     const market = normalizeMarket(o.market || o.Market || o.MARKET);
@@ -487,70 +431,64 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     const link = normalizeUrl(o.link || o.Link);
     const image_url = norm(o.image_url || o.image || o.Image || o.imageUrl || "");
 
-    // 纯数字 ASIN => 非 Amazon：隐藏进 archive
+    const csvIdx = i + 1; // 1-based
+
+    // 非 Amazon（纯数字）-> archive
     if (isNonAmazonByAsin(asin)) {
-      const item = { market, asin, title, link, image_url, _hidden_reason: "non_amazon_numeric_asin" };
+      const item = { market, asin, title, link, image_url, _hidden_reason: "non_amazon_numeric_asin", _idx: csvIdx };
       const k = keyOf(item);
       if (!archiveMap.has(k)) archiveMap.set(k, item);
       continue;
     }
 
-    // 下架 status：进 archive（确保独立页仍可打开）
+    // status 下架 -> archive
     const statusVal = o.status ?? o.Status ?? o.STATUS;
     if (!isActiveStatus(statusVal)) {
-      const item = { market, asin, title, link, image_url, _hidden_reason: "inactive_status" };
+      const item = { market, asin, title, link, image_url, _hidden_reason: "inactive_status", _idx: csvIdx };
       const k = keyOf(item);
       if (!archiveMap.has(k)) archiveMap.set(k, item);
       continue;
     }
 
-    // 上架：写入 activeMap（去重）
+    // 上架 -> active 去重
     const nowTs = Date.now();
-    const prev = prevMap.get(keyOf({ market, asin })) || null;
+    const prev = prevMap.get(`${market}|${asin}`) || prevMap.get(keyOf({ market, asin })) || null;
+
+    const incomingCore = { market, asin, title, link, image_url };
+    const changed = !prev ? true : !sameCore(prev, incomingCore);
 
     const item = {
-      market,
-      asin,
-      title,
-      link,
-      image_url,
-
-      // ✅ 用于前端排序（新增优先）
-      _created: prev?._created || nowTs,
-      _updated: nowTs,
+      ...incomingCore,
+      // 文档顺序（每次同步刷新为最新 CSV 行号；如果你希望“首次出现顺序固定”，把这里改成 prev?._idx ?? csvIdx）
+      _idx: csvIdx,
+      // 最近更新时间：只在“新增/变更”时更新，未变更则保留
+      _updated: changed ? nowTs : (prev?._updated ?? nowTs),
+      // 首次出现时间（可选）
+      _ts: prev?._ts ?? nowTs,
     };
 
     const k = keyOf(item);
-
     if (!activeMap.has(k)) {
       activeMap.set(k, item);
     } else {
       dupActive++;
-      // 注意：保留更新字段（被 pickBetter 替换时不要丢）
-      const kept = pickBetter(activeMap.get(k), item);
-      kept._created = kept._created ?? item._created;
-      kept._updated = item._updated;
-      activeMap.set(k, kept);
+      activeMap.set(k, pickBetter(activeMap.get(k), item));
     }
   }
 
-  const nextProducts = Array.from(activeMap.values());
-
-  // ✅ products.json 仅决定列表展示顺序：按 _updated 倒序（最新在最上）
-  nextProducts.sort((a, b) => {
+  // ✅ products.json：按“最近更新”倒序（新到旧）；同更新时间再按文档顺序（后面的更新）倒序
+  const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
     const ua = Number(a._updated || 0);
     const ub = Number(b._updated || 0);
     if (ub !== ua) return ub - ua;
-    // 次级稳定排序
-    const am = upper(a.market).localeCompare(upper(b.market));
-    if (am) return am;
-    return upper(a.asin).localeCompare(upper(b.asin));
+    const ia = Number(a._idx || 0);
+    const ib = Number(b._idx || 0);
+    return ib - ia;
   });
 
-  // Move removed items into archive (present before, missing now)
+  // 从 active 消失的旧数据 -> archive（保留独立页可打开）
   const nextKeys = new Set(nextProducts.map(keyOf));
   let removedCount = 0;
-
   for (const [k, oldP] of prevMap.entries()) {
     if (!nextKeys.has(k)) {
       if (!archiveMap.has(k)) archiveMap.set(k, oldP);
@@ -558,8 +496,8 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     }
   }
 
-  const nextArchive = Array.from(archiveMap.values());
-  nextArchive.sort((a, b) => {
+  // archive 不需要严格顺序；为了可读性做稳定排序
+  const nextArchive = Array.from(archiveMap.values()).sort((a, b) => {
     const am = upper(a.market).localeCompare(upper(b.market));
     if (am) return am;
     return upper(a.asin).localeCompare(upper(b.asin));
@@ -574,8 +512,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   writeJsonPretty(ARCHIVE_PATH, nextArchive);
   console.log("[sync] wrote products.json & archive.json");
 
-  // Generate /p pages + download /og images (active + archive)
-  // ✅ 即使 OG 下载大面积失败，也不会让 workflow 失败
+  // 生成 /p + /og（即使 og 下载大量失败，也不会让 workflow 失败）
   await generatePPagesAndOgImages(nextProducts, nextArchive);
 
   console.log("[done] sync + generate /p pages + /og images completed");
