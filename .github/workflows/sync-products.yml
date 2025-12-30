@@ -26,38 +26,34 @@ jobs:
         with:
           node-version: "20"
 
-      # 关键：先把 CSV 下载成文件，并做最基础的“是不是 CSV”的校验
-      - name: Download CSV (with retries) and validate
+      # 关键：先下载 CSV 成文件 + 校验是否真的是 CSV（不是 HTML/登录页）
+      - name: Download CSV (no-cache, retry) and validate
         env:
           CSV_URL: "http://154.48.226.95:5001/admin/Product/export_csv"
         run: |
           set -e
 
           echo "Downloading CSV from: $CSV_URL"
-          # 加 ts 防缓存（很多反向代理/中间层会缓存 GET）
           URL="$CSV_URL?ts=$(date +%s)"
 
-          # 下载（重试 + 超时）
           curl -L --fail --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 60 \
             -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
             "$URL" -o export.csv
 
-          echo "First 3 lines of export.csv:"
+          echo "==== CSV header preview ===="
           head -n 3 export.csv || true
+          echo "============================"
 
-          echo "File type:"
-          file export.csv || true
-
-          # 校验：必须包含 asin 表头（你导出里肯定有 asin 这一列）
+          # 必须包含 asin 表头，否则大概率是返回了 HTML/错误页
           if ! head -n 1 export.csv | tr '[:upper:]' '[:lower:]' | grep -q "asin"; then
             echo "ERROR: export.csv header does not contain 'asin'."
-            echo "This usually means the export URL returned HTML/login/error page instead of CSV."
-            echo "Dump first 50 lines for debugging:"
+            echo "Most likely the export URL returned HTML/login/error page instead of CSV."
+            echo "Dump first 50 lines:"
             sed -n '1,50p' export.csv || true
             exit 1
           fi
 
-      # 关键：把文件路径传给脚本（你需要在脚本里支持 CSV_FILE；见下方第2点）
+      # 关键：把本地文件路径传给脚本（你需要让脚本支持 CSV_FILE；下一步我给你脚本最终版）
       - name: Sync from CSV file -> products.json
         env:
           CSV_FILE: "export.csv"
