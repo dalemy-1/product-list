@@ -207,8 +207,17 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
  * - 重试 2 次
  */
 async function downloadOgImage(imageUrl, outAbsNoExt) {
-  const url = safeHttps(imageUrl);
+  let url = safeHttps(imageUrl);
   if (!isValidHttpUrl(url)) return null;
+
+  // ===== Amazon 图片特殊处理：FMwebp 强制改 FMjpg，避免返回 webp 导致失败 =====
+  if (/^https?:\/\/m\.media-amazon\.com\/images\//i.test(url)) {
+    // 常见：..._FMwebp_.jpg  实际返回 image/webp
+    url = url.replace(/_FMwebp_/gi, "_FMjpg_");
+    // 少量情况没有 FMxxx，但会返回 webp：也可按需加一条（可选）
+    // if (!/_FM[a-z]+_/i.test(url)) url = url.replace(/(\.[a-z0-9]+)$/i, "_FMjpg_$1");
+  }
+  // =====================================================================
 
   const headers = {
     "user-agent":
