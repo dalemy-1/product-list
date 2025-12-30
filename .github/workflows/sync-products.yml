@@ -2,7 +2,6 @@ name: Sync products.json + archive.json and generate /p pages
 
 on:
   workflow_dispatch:
-  # 如果要启用 GitHub 定时，取消注释即可
   # schedule:
   #   - cron: "*/5 * * * *"
 
@@ -54,20 +53,11 @@ jobs:
 
           git commit -m "chore: sync products + generate pages"
 
-          # 在 main 分支上做 rebase，避免 detached HEAD 导致 pull/rebase 失败
+          # 确保在 main 分支上（避免 detached HEAD 导致 pull/rebase 异常）
+          git checkout -B main
+
+          # 拉取远端并 rebase，降低 push 冲突概率
           git fetch origin main
+          git rebase origin/main
 
-          # 尝试两次，降低并发 push 冲突概率
-          for i in 1 2; do
-            git rebase origin/main || (git rebase --abort && exit 1)
-            if git push origin HEAD:main; then
-              echo "Pushed."
-              exit 0
-            fi
-            echo "Push failed, retrying..."
-            sleep 2
-            git fetch origin main
-          done
-
-          echo "Push failed after retries."
-          exit 1
+          git push origin main
