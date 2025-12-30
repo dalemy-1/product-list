@@ -250,7 +250,8 @@ function buildPreviewHtml({ market, asin, ogImageUrl }) {
   // 独立页不做 302，保持 OG 标签可被抓取；页面再用 meta refresh / JS 跳转
   const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}`;
 
-  const ogTitle = `Product Reference • ${String(market).toUpperCase()} • ${asinKey}`;
+  const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
+
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
 
@@ -264,7 +265,7 @@ function buildPreviewHtml({ market, asin, ogImageUrl }) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${escapeHtml(ogTitle)} • Product Picks</title>
+  <title>${escapeHtml(ogTitle)}</title>
   <meta name="description" content="${escapeHtml(ogDesc)}" />
 
   <meta property="og:type" content="website" />
@@ -436,7 +437,18 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     }
 
     // 上架 -> active 去重
-    const item = { market, asin, title, link, image_url };
+    const nowTs = Date.now();
+const prev = prevMap.get(`${market}|${asin}`) || null; // 注意 key 格式要一致
+const item = {
+  market,
+  asin,
+  title,
+  link,
+  image_url,
+  _ts: prev?._ts || nowTs,   // 已存在保留原时间（可选）
+  _updated: nowTs            // 每次同步都记录本次更新时间（用于排序）
+};
+
     const k = keyOf(item);
 
     if (!activeMap.has(k)) activeMap.set(k, item);
