@@ -215,19 +215,17 @@ function toWeservOg(url) {
 
 // 关键点：静态站点下，/p/... 不是 SPA rewrite，
 // 所以独立页要先跳首页，再由首页把路由切到 /p/market/asin
-function buildPreviewHtml({ market, asinKey, imageUrl, amazonUrl }) {
-  const mUpper = String(market).toUpperCase();
-  const asin = String(asinKey).toUpperCase();
-  const pagePath = `/p/${encodeURIComponent(mUpper.toLowerCase())}/${encodeURIComponent(asin)}/`;
-  const pageUrl = `${SITE_ORIGIN}${pagePath}`;
+function buildPreviewHtml({ market, asin, imageUrl }) {
+  const mLower = String(market).toLowerCase();
+  const asinKey = String(asin).toUpperCase();
 
-  const ogTitle = `Product Reference • ${mUpper} • ${asin}`;
+  const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
+  const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}`;
+
+  const ogTitle = `Product Reference • ${String(market).toUpperCase()} • ${asinKey}`;
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
   const ogImage = toWeservOg(imageUrl) || `${SITE_ORIGIN}/og-placeholder.jpg`;
-
-  const safeAmazon = isValidHttpUrl(amazonUrl) ? safeHttps(amazonUrl) : "";
-  const safeImg = isValidHttpUrl(imageUrl) ? safeHttps(imageUrl) : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -241,7 +239,7 @@ function buildPreviewHtml({ market, asinKey, imageUrl, amazonUrl }) {
   <meta property="og:site_name" content="Product Picks" />
   <meta property="og:title" content="${escapeHtml(ogTitle)}" />
   <meta property="og:description" content="${escapeHtml(ogDesc)}" />
-  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
+  <meta property="og:url" content="${escapeHtml(SITE_ORIGIN + pagePath)}" />
   <meta property="og:image" content="${escapeHtml(ogImage)}" />
   <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}" />
 
@@ -250,126 +248,16 @@ function buildPreviewHtml({ market, asinKey, imageUrl, amazonUrl }) {
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
 
-  <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#0f1a33;
-      --panel2:#0b152b;
-      --text:#e5e7eb;
-      --muted:#9ca3af;
-      --border:rgba(255,255,255,.10);
-      --btn:#1f2937;
-      --btn2:#111827;
-      --accent:#2563eb;
-    }
-    *{ box-sizing:border-box; }
-    body{ margin:0; font-family:Arial, sans-serif; background: radial-gradient(1200px 600px at 50% 0%, #0f1a33 0%, #050a14 60%, #050a14 100%); color:var(--text); }
-    .wrap{ max-width:1100px; margin:42px auto; padding:0 16px; }
-    .card{
-      background: linear-gradient(135deg, #0f1a33 0%, #0b152b 100%);
-      border:1px solid var(--border);
-      border-radius:18px;
-      padding:18px;
-      display:grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap:18px;
-      align-items:start;
-      box-shadow:0 18px 48px rgba(0,0,0,.40);
-    }
-    @media (max-width: 900px){ .card{ grid-template-columns:1fr; } }
-    .chip{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      background:rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      color:var(--muted);
-      font-size:12px;
-      margin-bottom:10px;
-    }
-    .title{ font-size:22px; font-weight:900; margin:0 0 6px 0; }
-    .sub{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 14px 0; }
-    .imgbox{
-      background:rgba(255,255,255,.05);
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:12px;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      min-height:360px;
-    }
-    img{
-      max-width:100%;
-      max-height:420px;
-      object-fit:contain;
-      border-radius:14px;
-      background:#fff;
-    }
-    .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .btn{
-      appearance:none; border:none;
-      background:rgba(255,255,255,.08);
-      color:var(--text);
-      padding:10px 14px;
-      border-radius:12px;
-      font-weight:900;
-      cursor:pointer;
-      text-decoration:none;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid var(--border);
-    }
-    .btn.primary{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-color:rgba(255,255,255,.18); }
-    .btn:hover{ opacity:.92; }
-    .note{
-      margin-top:12px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background:rgba(255,255,255,.06);
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.6;
-    }
-    code{ color:#c7d2fe; }
-  </style>
+  <meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" />
+  <noscript><meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" /></noscript>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="imgbox">
-        ${safeImg ? `<img src="${escapeHtml(safeImg)}" alt="${escapeHtml(asin)}" referrerpolicy="no-referrer" />` : `<div style="color:var(--muted);font-weight:800;">Image unavailable</div>`}
-      </div>
-      <div>
-        <div class="chip">${escapeHtml(mUpper)} · ${escapeHtml(asin)}</div>
-        <h1 class="title">Product Reference</h1>
-        <p class="sub">
-          Market: <b>${escapeHtml(mUpper)}</b> · ASIN: <b>${escapeHtml(asin)}</b><br/>
-          As an Amazon Associate, we earn from qualifying purchases. Purchases are completed on Amazon.
-        </p>
-
-        <div class="actions">
-          ${safeAmazon
-            ? `<a class="btn primary" href="${escapeHtml(safeAmazon)}" target="_blank" rel="noopener noreferrer nofollow sponsored">Open on Amazon</a>`
-            : `<button class="btn primary" onclick="alert('No valid Amazon link for this item.')">Open on Amazon</button>`
-          }
-          <a class="btn" href="${escapeHtml(SITE_ORIGIN + "/")}" rel="noopener">Back to list</a>
-          <button class="btn" onclick="navigator.clipboard.writeText('${escapeHtml(pageUrl)}').then(()=>alert('Copied page link!')).catch(()=>alert('Copy failed'))">Copy page link</button>
-        </div>
-
-        <div class="note">
-          <b>Disclosure:</b> As an Amazon Associate, we earn from qualifying purchases.<br/>
-          <b>Independence:</b> This site is not endorsed by Amazon.<br/>
-          <b>Data:</b> This page is generated from your CSV snapshot and does not rely on SPA routing.
-        </div>
-      </div>
-    </div>
-  </div>
+<script>
+  location.replace(${JSON.stringify(landing)});
+</script>
 </body>
 </html>`;
 }
-
 
 function generatePPages(activeList, archiveList) {
   const outDirAbs = siteJoin(OUT_DIR);
@@ -410,13 +298,7 @@ function generatePPages(activeList, archiveList) {
     const dir = path.join(outDirAbs, market.toLowerCase(), asin);
     ensureDir(dir);
 
-    const html = buildPreviewHtml({
-  market,
-  asinKey: asin,
-  imageUrl: img,
-  amazonUrl: norm(p.link)
-});
-
+    const html = buildPreviewHtml({ market, asin, imageUrl: img });
     fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
     count++;
   }
