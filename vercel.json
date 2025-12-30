@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/p/:market/:asin", "destination": "/product.html?market=:market&asin=:asin" }
+  ]
+}
