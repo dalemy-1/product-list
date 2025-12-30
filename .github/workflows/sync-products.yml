@@ -1,7 +1,10 @@
 name: Sync products.json + archive.json and generate /p pages
 
 on:
+  push:
+    branches: ["main"]
   workflow_dispatch:
+  # 如需定时，取消注释即可
   # schedule:
   #   - cron: "*/5 * * * *"
 
@@ -33,31 +36,28 @@ jobs:
           SITE_ORIGIN: "https://ama.omino.top"
           OUT_DIR: "p"
         run: |
-          set -e
+          set -euo pipefail
           echo "[workflow] CSV_URL=$CSV_URL"
           node scripts/sync_products.mjs
 
       - name: Commit changes (only if changed)
         run: |
-          set -e
+          set -euo pipefail
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
+          # 没有变更就退出
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes"
             exit 0
           fi
 
-          git commit -m "chore: sync products + generate pages"
-
-          # 确保在 main 分支上（避免 detached HEAD 导致 pull/rebase 异常）
-          git checkout -B main
+          git add -A
+          git commit -m "chore: sync products + generate pages" || true
 
           # 拉取远端并 rebase，降低 push 冲突概率
           git fetch origin main
           git rebase origin/main
 
-          git push origin main
+          git push origin HEAD:main
