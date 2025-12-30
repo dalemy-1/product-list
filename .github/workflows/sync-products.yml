@@ -1,7 +1,10 @@
-name: Sync products.json + archive.json and generate /p pages (every 5 min)
+name: Sync products.json + archive.json and generate /p pages
 
 on:
   workflow_dispatch:
+  # 如果你不想用 GitHub 自带定时，就保持注释
+  # schedule:
+  #   - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -30,40 +33,31 @@ jobs:
           SITE_ORIGIN: "https://ama.omino.top"
           OUT_DIR: "p"
         run: |
+          set -e
           echo "[workflow] CSV_URL=$CSV_URL"
           node scripts/sync_products.mjs
 
-            - name: Commit changes (only if changed)
+      - name: Commit changes (only if changed)
         run: |
           set -e
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 先把工作区产生的文件全部加入暂存区（包含新增文件）
+          # 先把工作区产生的文件加入暂存区
           git add -A
 
-          # 如果暂存区没有变化，直接成功退出（不会红叉）
+          # 没有任何变更就退出
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
 
-          # 提交
           git commit -m "chore: sync products + generate pages"
 
-          # 推送前先rebase一下远端，避免非快进失败；失败就重试一次
-          for i in 1 2; do
-            git fetch origin main
-            git rebase origin/main || (git rebase --abort && exit 1)
-            if git push origin HEAD:main; then
-              echo "Pushed."
-              exit 0
-            fi
-            echo "Push failed, retrying..."
-            sleep 2
-          done
+          # 拉取远端并 rebase，避免 push 冲突
+          git fetch origin main
+          git rebase origin/main
 
-          echo "Push failed after retries."
-          exit 1
-
+          # 推送
+          git push origin HEAD:main
