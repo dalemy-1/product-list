@@ -510,13 +510,9 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
 
   // products.json 给一个“新到旧”默认排序（前端也可再排序）
   const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
-    const ua = Number(a._updated || 0);
-    const ub = Number(b._updated || 0);
-    if (ub !== ua) return ub - ua;
-    const ia = Number(a._idx || 0);
-    const ib = Number(b._idx || 0);
-    return ib - ia;
-  });
+  return Number(a._idx || 0) - Number(b._idx || 0);
+});
+
 
   // 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
   const nextKeys = new Set(nextProducts.map(keyOf));
