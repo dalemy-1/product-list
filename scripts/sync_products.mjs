@@ -10,9 +10,6 @@
 // Optional env:
 //   SITE_ORIGIN=https://ama.omino.top   (used for /p page generation)
 //   OUT_DIR=./p                         (defaults to ./p)
-//
-// Optional debug env:
-//   DEBUG_ASIN=B0FCSFYFSD               (prints matched CSV rows + final classification)
 
 import fs from "fs";
 import path from "path";
@@ -27,7 +24,6 @@ if (!CSV_URL) {
 
 const SITE_ORIGIN = (process.env.SITE_ORIGIN || "https://ama.omino.top").replace(/\/+$/, "");
 const OUT_DIR = (process.env.OUT_DIR || "./p").trim();
-const DEBUG_ASIN = (process.env.DEBUG_ASIN || "B0FCSFYFSD").trim().toUpperCase(); // 默认帮你查这个
 
 // ================== PATHS ==================
 const ROOT = process.cwd();
@@ -151,57 +147,10 @@ function mapRow(headers, cells) {
   return obj;
 }
 
-// ✅ 更强的 status 解析：兼容大写/中文/数字
 function isActiveStatus(v) {
   const s = norm(v).toLowerCase();
-  if (!s) return true; // 空 => 默认上架
-
-  const activeSet = new Set([
-    "1",
-    "true",
-    "yes",
-    "y",
-    "on",
-    "active",
-    "enabled",
-    "publish",
-    "published",
-    "online",
-    "up",
-    "instock",
-    "in_stock",
-    "上架",
-    "在售",
-    "上线",
-    "启用",
-  ]);
-
-  const inactiveSet = new Set([
-    "0",
-    "false",
-    "no",
-    "n",
-    "off",
-    "inactive",
-    "disabled",
-    "unpublish",
-    "unpublished",
-    "offline",
-    "oos",
-    "out_of_stock",
-    "下架",
-    "停售",
-    "停用",
-  ]);
-
-  if (activeSet.has(s)) return true;
-  if (inactiveSet.has(s)) return false;
-
-  // 兜底：纯数字且不为 0 => 上架
-  if (/^\d+$/.test(s)) return s !== "0";
-
-  // 未知值：更保守，视作下架（避免误上架）
-  return false;
+  if (!s) return true; // CSV 未填 status => 默认上架
+  return ["1", "true", "yes", "on", "active", "enabled", "publish", "published", "online"].includes(s);
 }
 
 function isAllDigits(s) {
@@ -209,7 +158,7 @@ function isAllDigits(s) {
   return x !== "" && /^[0-9]+$/.test(x);
 }
 
-// 你的规则：纯数字 => 其它平台（Walmart 等），不展示
+// 你的规则：纯数字 => 其它平台（Walmart 等），不展示（但保留到 archive 以便独立页可查）
 function isNonAmazonByAsin(asin) {
   return isAllDigits(asin);
 }
@@ -262,6 +211,7 @@ function buildPreviewHtml({ market, asinKey, imageUrl }) {
 
   const ogImage = toWeservOg(imageUrl) || `${SITE_ORIGIN}/og-placeholder.jpg`;
 
+  // /p/... 原地渲染，并从 products.json / archive.json 里查找对应 market+asin
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -286,6 +236,7 @@ function buildPreviewHtml({ market, asinKey, imageUrl }) {
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
 
+  <!-- 独立页不参与索引，降低重复页风险 -->
   <meta name="robots" content="noindex,nofollow" />
 
   <style>
@@ -348,6 +299,7 @@ function buildPreviewHtml({ market, asinKey, imageUrl }) {
   function parsePath(){
     var p = location.pathname || "/";
     if (p.length > 1 && p.endsWith("/")) p = p.slice(0,-1);
+    // /p/uk/B07RYTFHCR 或 /p/uk/B07RYTFHCR_1
     var m = p.match(/^\\/p\\/([a-zA-Z]{2})\\/([A-Za-z0-9]{10})(?:_(\\d+))?$/);
     if(!m) return null;
     return { market: upper(m[1]), asin: upper(m[2]) };
@@ -442,9 +394,11 @@ function generatePPages(activeList, archiveList) {
 
   // stable ordering -> stable asinKey assignment
   all.sort((a, b) => {
-    const ma = upper(a.market), mb = upper(b.market);
+    const ma = upper(a.market),
+      mb = upper(b.market);
     if (ma !== mb) return ma.localeCompare(mb);
-    const aa = upper(a.asin), ab = upper(b.asin);
+    const aa = upper(a.asin),
+      ab = upper(b.asin);
     if (aa !== ab) return aa.localeCompare(ab);
     return 0;
   });
@@ -454,7 +408,7 @@ function generatePPages(activeList, archiveList) {
   let count = 0;
   for (const p of all) {
     const market = upper(p.market);
-    const asinKey = p.__asinKey;
+    const asinKey = p.__asinKey; // 如仍有重复，会产生 _1；后面我们已对 products 去重，archive 也尽量稳定
     const img = norm(p.image_url);
 
     const dir = path.join(outDirAbs, market.toLowerCase(), asinKey);
@@ -466,6 +420,19 @@ function generatePPages(activeList, archiveList) {
   }
 
   console.log(`[p] generated ${count} pages under ${OUT_DIR}`);
+}
+
+// ===== simple dedupe: keep first occurrence per market+asin =====
+function dedupeByMarketAsin(list) {
+  const seen = new Set();
+  const out = [];
+  for (const p of list) {
+    const k = `${upper(p.market)}|${upper(p.asin)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+  }
+  return out;
 }
 
 // ================== MAIN ==================
@@ -484,27 +451,6 @@ function generatePPages(activeList, archiveList) {
   console.log("[sync] headers =", headers.join(" | "));
   console.log("[sync] data rows =", dataRows.length);
 
-  // ===== debug: check one asin in CSV =====
-  if (DEBUG_ASIN) {
-    let hit = 0;
-    for (const r of dataRows) {
-      const o = mapRow(headers, r);
-      const asin0 = normalizeAsin(o.asin || o.ASIN);
-      if (asin0 === DEBUG_ASIN) {
-        hit++;
-        console.log("[debug] found asin row:", JSON.stringify({
-          market: o.market,
-          asin: o.asin,
-          status: o.status,
-          title: o.title,
-          link: o.link,
-          image_url: o.image_url
-        }).slice(0, 800));
-      }
-    }
-    console.log("[debug] asin hit count =", hit, "asin =", DEBUG_ASIN);
-  }
-
   const prevProducts = Array.isArray(safeReadJson(PRODUCTS_PATH, [])) ? safeReadJson(PRODUCTS_PATH, []) : [];
   const prevArchive = Array.isArray(safeReadJson(ARCHIVE_PATH, [])) ? safeReadJson(ARCHIVE_PATH, []) : [];
 
@@ -516,8 +462,6 @@ function generatePPages(activeList, archiveList) {
 
   // Build new active list from CSV (source of truth)
   const nextProducts = [];
-  let dbgClassified = { active: 0, archived_inactive: 0, archived_nonamazon: 0 };
-
   for (const r of dataRows) {
     const o = mapRow(headers, r);
 
@@ -531,37 +475,53 @@ function generatePPages(activeList, archiveList) {
 
     // 纯数字 ASIN => 非 Amazon，隐藏：进 archive，不进 products
     if (isNonAmazonByAsin(asin)) {
-      const nonAmazonItem = { market, asin, title, link, image_url, _hidden_reason: "non_amazon_numeric_asin" };
+      const nonAmazonItem = {
+        market,
+        asin,
+        title,
+        link,
+        image_url,
+        _hidden_reason: "non_amazon_numeric_asin",
+      };
       const k = keyOf(nonAmazonItem);
       if (!archiveMap.has(k)) archiveMap.set(k, nonAmazonItem);
-      if (asin === DEBUG_ASIN) dbgClassified.archived_nonamazon++;
       continue;
     }
 
     // status 下架：不进 products，但必须进 archive（确保独立页仍能展示）
     const statusVal = o.status ?? o.Status ?? o.STATUS;
     if (!isActiveStatus(statusVal)) {
-      const archivedItem = { market, asin, title, link, image_url, _hidden_reason: "inactive_status" };
+      const archivedItem = {
+        market,
+        asin,
+        title,
+        link,
+        image_url,
+        _hidden_reason: "inactive_status",
+      };
       const k = keyOf(archivedItem);
       if (!archiveMap.has(k)) archiveMap.set(k, archivedItem);
-      if (asin === DEBUG_ASIN) dbgClassified.archived_inactive++;
       continue;
     }
 
     // 正常上架：进 products
     nextProducts.push({ market, asin, title, link, image_url });
-    if (asin === DEBUG_ASIN) dbgClassified.active++;
   }
 
-  if (DEBUG_ASIN) {
-    console.log("[debug] classification for", DEBUG_ASIN, dbgClassified);
-  }
-
+  // Sort -> stable output
   nextProducts.sort((a, b) => {
     const am = a.market.localeCompare(b.market);
     if (am) return am;
     return a.asin.localeCompare(b.asin);
   });
+
+  // ✅ simple dedupe on active list
+  const before = nextProducts.length;
+  const deduped = dedupeByMarketAsin(nextProducts);
+  const removedDup = before - deduped.length;
+  if (removedDup > 0) console.log("[sync] dedup removed =", removedDup);
+  nextProducts.length = 0;
+  nextProducts.push(...deduped);
 
   // Move removed items into archive (present before, missing now)
   const nextKeys = new Set(nextProducts.map(keyOf));
@@ -589,7 +549,7 @@ function generatePPages(activeList, archiveList) {
   writeJsonPretty(ARCHIVE_PATH, nextArchive);
   console.log("[sync] wrote products.json & archive.json");
 
-  // Generate /p pages
+  // Generate /p pages (active + archive)
   generatePPages(nextProducts, nextArchive);
 
   console.log("[done] sync + generate /p pages completed");
