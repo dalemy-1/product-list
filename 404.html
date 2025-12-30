@@ -13,7 +13,7 @@
   if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
 
   // 兼容大小写：/p/us/B07... 或 /P/US/B07...
-  var mm = p.match(/^\/p\/([a-zA-Z]{2})\/([A-Za-z0-9]{10})$/i);
+  var mm = p.match(/^\/p\/([a-zA-Z]{2})\/([A-Za-z0-9]{10})(?:_\d+)?$/i);
   if (mm) {
     var market = (mm[1] || "").toUpperCase();
     var asin = (mm[2] || "").toUpperCase();
