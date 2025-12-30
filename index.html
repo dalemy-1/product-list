@@ -750,12 +750,13 @@
 
     list = dedupeByMarketAsinKeepFirst(list);
 
-    list.sort((a,b) => {
-      const ka = archivedKeySet.has(keyOf(a.market, a.asin)) ? 0 : 1;
-      const kb = archivedKeySet.has(keyOf(b.market, b.asin)) ? 0 : 1;
-      if (ka !== kb) return ka - kb;
-      return (a.__idx ?? 0) - (b.__idx ?? 0);
-    });
+    list.sort((a, b) => {
+  const ua = Number(a._updated || 0);
+  const ub = Number(b._updated || 0);
+  if (ub !== ua) return ub - ua;      // 最新在上
+  return (a._idx ?? 0) - (b._idx ?? 0);
+});
+
 
     return list;
   }
@@ -1306,3 +1307,4 @@
 </script>
 </body>
 </html>
+
