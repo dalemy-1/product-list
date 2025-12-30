@@ -1,4 +1,4 @@
-name: Sync products + generate /p pages (every 5 min)
+name: Sync products.json + archive.json and generate /p pages (every 5 min)
 
 on:
   workflow_dispatch:
@@ -26,21 +26,22 @@ jobs:
         with:
           node-version: "20"
 
-      # 1) Sync products.json & archive.json from CSV (source of truth)
+      # 1) 从 CSV_URL 重建 products.json + archive.json（你的脚本：scripts/sync_from_csv.mjs）
       - name: Sync from CSV -> products.json + archive.json
         env:
           CSV_URL: "http://154.48.226.95:5001/admin/Product/export_csv"
         run: |
-          node scripts/sync_products.mjs
+          echo "[workflow] CSV_URL=$CSV_URL"
+          node scripts/sync_from_csv.mjs
 
-      # 2) Generate /p/{market}/{asinKey}/index.html pages
+      # 2) 生成 /p/{market}/{asinKey}/index.html（URL 保持不变的静态独立页）
       - name: Generate product pages under /p
         env:
           SITE_ORIGIN: "https://ama.omino.top"
         run: |
           node tools/generate_product_pages.mjs
 
-      # 3) Commit & push only if there are changes
+      # 3) 提交（仅当有变更）
       - name: Commit changes (only if changed)
         run: |
           git config user.name "github-actions[bot]"
