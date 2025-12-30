@@ -44,10 +44,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 先把工作区产生的文件加入暂存区
           git add -A
 
-          # 没有任何变更就退出
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
@@ -57,7 +55,6 @@ jobs:
 
           # 拉取远端并 rebase，避免 push 冲突
           git fetch origin main
-          git rebase origin/main
+          git pull --rebase origin main
 
-          # 推送
           git push origin HEAD:main
