@@ -3,14 +3,7 @@
 // 1) Fetch CSV from CSV_URL (source of truth)
 // 2) Rebuild products.json + archive.json
 // 3) Generate /p/{market}/{asin}/index.html pages (stable share URLs -> redirect to SPA)
-//
-// Required env:
-//   CSV_URL=http(s)://.../export_csv
-//
-// Optional env:
-//   SITE_ORIGIN=https://ama.omino.top
-//   OUT_DIR=./p (relative to site root dir)
-//   SITE_DIR=product-list   (if your GitHub Pages publishes a subfolder)
+// 4) NEW: Download OG images to /og/{market}/{asin}.(jpg|png) for WhatsApp previews (no weserv)
 
 import fs from "fs";
 import path from "path";
@@ -30,8 +23,10 @@ const ROOT = process.cwd();
 const SITE_DIR = (() => {
   const explicit = (process.env.SITE_DIR || "").trim();
   if (explicit) return explicit.replace(/^\/+|\/+$/g, "");
-  // auto: if product-list/products.json exists -> use product-list
-  if (fs.existsSync(path.join(ROOT, "product-list", "products.json")) || fs.existsSync(path.join(ROOT, "product-list", "index.html"))) {
+  if (
+    fs.existsSync(path.join(ROOT, "product-list", "products.json")) ||
+    fs.existsSync(path.join(ROOT, "product-list", "index.html"))
+  ) {
     return "product-list";
   }
   return "";
@@ -42,7 +37,7 @@ function siteJoin(...segs) {
 }
 
 const PRODUCTS_PATH = siteJoin("products.json");
-const ARCHIVE_PATH  = siteJoin("archive.json");
+const ARCHIVE_PATH = siteJoin("archive.json");
 
 // OUT_DIR is relative to SITE_DIR
 const OUT_DIR = (() => {
@@ -50,6 +45,10 @@ const OUT_DIR = (() => {
   if (explicit) return explicit.replace(/^\/+/, "");
   return "p";
 })();
+
+// NEW: OG image output dir at site root
+const OG_DIR = "og"; // relative to SITE_DIR
+const OG_PLACEHOLDER = `${SITE_ORIGIN}/og-placeholder.jpg`;
 
 // ================== HELPERS ==================
 function norm(s) { return String(s ?? "").trim(); }
@@ -205,17 +204,54 @@ async function fetchText(url) {
   return await res.text();
 }
 
-// ================== /p PAGE GENERATOR ==================
-function toWeservOg(url) {
-  const u = safeHttps(url);
-  if (!u) return "";
-  const cleaned = u.replace(/^https?:\/\//i, "");
-  return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}&w=1200&h=630&fit=cover&output=jpg`;
+// ================== OG IMAGE DOWNLOADER (NEW) ==================
+function guessExtFromContentType(ct) {
+  const s = String(ct || "").toLowerCase();
+  if (s.includes("image/jpeg") || s.includes("image/jpg")) return "jpg";
+  if (s.includes("image/png")) return "png";
+  if (s.includes("image/webp")) return "webp";
+  return ""; // unknown
 }
 
-// 关键点：静态站点下，/p/... 不是 SPA rewrite，
-// 所以独立页要先跳首页，再由首页把路由切到 /p/market/asin
-function buildPreviewHtml({ market, asin, imageUrl }) {
+async function downloadOgImage(imageUrl, outAbsNoExt) {
+  const url = safeHttps(imageUrl);
+  if (!isValidHttpUrl(url)) return null;
+
+  // GitHub Actions 直连下载，尽量模拟正常 UA
+  const res = await fetch(url, {
+    redirect: "follow",
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+      accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      // 注意：不要加 Referer=amazon，会更容易触发风控；保持空更稳
+    },
+  });
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const ct = res.headers.get("content-type") || "";
+  const ext = guessExtFromContentType(ct);
+  if (!ext) {
+    return null;
+  }
+
+  const buf = Buffer.from(await res.arrayBuffer());
+  // 简单防呆：避免写入非常小的错误内容
+  if (buf.length < 2048) return null;
+
+  const outAbs = `${outAbsNoExt}.${ext}`;
+  ensureDir(path.dirname(outAbs));
+  fs.writeFileSync(outAbs, buf);
+
+  return { ext, bytes: buf.length };
+}
+
+// ================== /p PAGE GENERATOR ==================
+function buildPreviewHtml({ market, asin, ogImageUrl }) {
   const mLower = String(market).toLowerCase();
   const asinKey = String(asin).toUpperCase();
 
@@ -225,7 +261,9 @@ function buildPreviewHtml({ market, asin, imageUrl }) {
   const ogTitle = `Product Reference • ${String(market).toUpperCase()} • ${asinKey}`;
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
-  const ogImage = toWeservOg(imageUrl) || `${SITE_ORIGIN}/og-placeholder.jpg`;
+
+  const ogImage = ogImageUrl || OG_PLACEHOLDER;
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -258,14 +296,16 @@ function buildPreviewHtml({ market, asin, imageUrl }) {
 </html>`;
 }
 
-function generatePPages(activeList, archiveList) {
+async function generatePPagesAndOgImages(activeList, archiveList) {
   const outDirAbs = siteJoin(OUT_DIR);
+  const ogDirAbs = siteJoin(OG_DIR);
 
-  // 每次全量重建 /p，避免旧页面残留
-  if (fs.existsSync(outDirAbs)) {
-    fs.rmSync(outDirAbs, { recursive: true, force: true });
-  }
+  // 每次全量重建 /p 和 /og，避免旧文件残留
+  if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
   ensureDir(outDirAbs);
+
+  if (fs.existsSync(ogDirAbs)) fs.rmSync(ogDirAbs, { recursive: true, force: true });
+  ensureDir(ogDirAbs);
 
   const all = [...(activeList || []), ...(archiveList || [])].filter((p) => p && p.market && p.asin);
 
@@ -288,21 +328,44 @@ function generatePPages(activeList, archiveList) {
     return 0;
   });
 
-  let count = 0;
+  let pageCount = 0;
+  let ogOk = 0;
+  let ogFail = 0;
+
+  // 逐个下载图片（简单稳定；如果你以后量很大再做并发优化）
   for (const p of uniq) {
     const market = upper(p.market);
     const asin = upper(p.asin);
     const img = norm(p.image_url);
 
+    // 1) Download OG image to /og/{market}/{asin}.(jpg|png|webp)
+    let ogImageUrl = "";
+    if (img) {
+      const outNoExt = path.join(ogDirAbs, market.toLowerCase(), asin); // no ext
+      const r = await downloadOgImage(img, outNoExt);
+      if (r?.ext) {
+        ogImageUrl = `${SITE_ORIGIN}/${OG_DIR}/${market.toLowerCase()}/${asin}.${r.ext}`;
+        ogOk++;
+        console.log(`[og] ok ${market}/${asin}.${r.ext} (${r.bytes} bytes)`);
+      } else {
+        ogFail++;
+        // fallback below
+      }
+    } else {
+      ogFail++;
+    }
+
+    // 2) Generate /p page
     const dir = path.join(outDirAbs, market.toLowerCase(), asin);
     ensureDir(dir);
 
-    const html = buildPreviewHtml({ market, asin, imageUrl: img });
+    const html = buildPreviewHtml({ market, asin, ogImageUrl: ogImageUrl || OG_PLACEHOLDER });
     fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
-    count++;
+    pageCount++;
   }
 
-  console.log(`[p] generated ${count} pages under ${SITE_DIR ? SITE_DIR + "/" : ""}${OUT_DIR}`);
+  console.log(`[p] generated ${pageCount} pages under ${SITE_DIR ? SITE_DIR + "/" : ""}${OUT_DIR}`);
+  console.log(`[og] downloaded ok=${ogOk}, failed=${ogFail} (fallback to og-placeholder.jpg)`);
 }
 
 // ================== MAIN ==================
@@ -312,6 +375,8 @@ function generatePPages(activeList, archiveList) {
   console.log("[sync] write products to =", PRODUCTS_PATH);
   console.log("[sync] write archive  to =", ARCHIVE_PATH);
   console.log("[sync] p out dir        =", siteJoin(OUT_DIR));
+  console.log("[sync] og out dir       =", siteJoin(OG_DIR));
+  console.log("[sync] og placeholder   =", OG_PLACEHOLDER);
 
   const csvText = await fetchText(CSV_URL);
   console.log("[sync] CSV bytes =", csvText.length);
@@ -416,10 +481,10 @@ function generatePPages(activeList, archiveList) {
   writeJsonPretty(ARCHIVE_PATH, nextArchive);
   console.log("[sync] wrote products.json & archive.json");
 
-  // Generate /p pages (active + archive)
-  generatePPages(nextProducts, nextArchive);
+  // Generate /p pages + download /og images (active + archive)
+  await generatePPagesAndOgImages(nextProducts, nextArchive);
 
-  console.log("[done] sync + generate /p pages completed");
+  console.log("[done] sync + generate /p pages + /og images completed");
 })().catch((err) => {
   console.error("[fatal]", err?.stack || err);
   process.exit(1);
