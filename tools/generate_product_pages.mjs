@@ -1,4 +1,8 @@
 // tools/generate_product_pages.mjs
+// Generate /p/{market}/{asinKey}/index.html for stable share URLs (WhatsApp/Telegram).
+// This version renders a "white UI product page" (matches your original product page style),
+// while keeping OG/Twitter meta stable with images.weserv.nl proxy.
+
 import fs from "fs";
 import path from "path";
 
@@ -22,7 +26,6 @@ function escapeHtml(str) {
 }
 function safeHttps(url) { return norm(url).replace(/^http:\/\//i, "https://"); }
 
-// OG image use weserv
 function toWeservOg(url) {
   const u = safeHttps(url);
   if (!u) return "";
@@ -33,9 +36,10 @@ function toWeservView(url){
   const u = safeHttps(url);
   if (!u) return "";
   const cleaned = u.replace(/^https?:\/\//i, "");
-  return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}&w=1200&h=1200&fit=contain&output=jpg`;
+  return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}&w=1400&h=1400&fit=contain&output=jpg`;
 }
 
+// duplicates: market+asin may repeat -> ASIN, ASIN_1, ASIN_2...
 function annotateAsinKeys(list) {
   const counter = new Map();
   for (const p of list) {
@@ -49,7 +53,13 @@ function annotateAsinKeys(list) {
   }
 }
 
-function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
+function normalizeList(json) {
+  if (Array.isArray(json)) return json;
+  if (json && Array.isArray(json.items)) return json.items;
+  return [];
+}
+
+function buildWhitePageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
   const mLower = String(market).toLowerCase();
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}/`;
   const pageUrl = SITE_ORIGIN + pagePath;
@@ -61,6 +71,9 @@ function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
   const viewImg = toWeservView(imageUrl);
   const openUrl = `${SITE_ORIGIN}/open.html?market=${encodeURIComponent(upper(market))}&asin=${encodeURIComponent(upper(asin))}` +
                   (amazonLink ? `&link=${encodeURIComponent(amazonLink)}` : "");
+
+  // Back: prefer site root list
+  const backUrl = `${SITE_ORIGIN}/index.html`;
 
   return `<!doctype html>
 <html lang="en">
@@ -87,33 +100,113 @@ function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
 
   <style>
-    :root{--bg:#0b1220;--border:rgba(255,255,255,.12);--muted:rgba(255,255,255,.75)}
+    :root{
+      --bg:#eef2f6;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --text:#111827;
+      --muted:#6b7280;
+      --dark:#0f172a;
+      --btn:#0b1220;
+      --btnText:#ffffff;
+    }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0b1220;color:#fff}
-    header{padding:16px 14px;text-align:center;font-weight:900;font-size:28px}
-    .wrap{max-width:980px;margin:0 auto;padding:10px 14px 36px}
-    .top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0 12px}
-    .pill{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:13px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid var(--border);text-decoration:none;font-weight:900;cursor:pointer}
-    .btn.primary{background:#fff;color:#111827}
-    .btn.secondary{background:transparent;color:#fff}
-    .card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
-    .imgbox{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:16px;padding:12px;display:flex;align-items:center;justify-content:center;min-height:380px}
-    .imgbox img{max-width:100%;max-height:520px;object-fit:contain;border-radius:12px}
-    .note{color:var(--muted);font-size:13px;line-height:1.55;margin-top:10px}
-    code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
-    footer{margin-top:14px;color:rgba(255,255,255,.65);font-size:12px;line-height:1.5}
-    a.link{color:#9cc2ff}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    header{background:radial-gradient(1200px 360px at 50% 0%, #1f2a44, #0b1220);color:#fff;text-align:center;padding:22px 14px 18px}
+    header .h{font-size:34px;font-weight:900;letter-spacing:.2px}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px 14px 44px}
+    .topbar{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      box-shadow:0 10px 24px rgba(15,23,42,.08);
+      margin-bottom:14px;
+    }
+    .topbar .left{display:flex;flex-direction:column;gap:2px}
+    .topbar .title{font-weight:900}
+    .topbar .meta{color:var(--muted);font-size:12px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:10px 14px;border-radius:12px;border:1px solid var(--border);
+      background:#fff;color:var(--text);text-decoration:none;font-weight:800;cursor:pointer;
+    }
+    .btn.primary{background:var(--btn);color:var(--btnText);border-color:rgba(255,255,255,.12)}
+    .btn:hover{opacity:.96}
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:16px;
+      box-shadow:0 12px 30px rgba(15,23,42,.08);
+    }
+    .imgbox{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      display:flex;align-items:center;justify-content:center;
+      min-height:520px;
+    }
+    .imgbox img{max-width:100%;max-height:720px;object-fit:contain;border-radius:12px}
+    .noteBox{
+      margin:12px auto 0;
+      max-width:520px;
+      border:1px solid var(--border);
+      background:#f8fafc;
+      border-radius:14px;
+      padding:12px 14px;
+      color:var(--text);
+      font-size:12px;
+      line-height:1.45;
+      text-align:left;
+    }
+    .noteBox .t{font-weight:900;margin-bottom:6px}
+    .ctaRow{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+    .disclosure{
+      margin-top:14px;
+      border:1px solid var(--border);
+      background:#f8fafc;
+      border-radius:14px;
+      padding:12px 14px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+    footer{
+      margin-top:18px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.6;
+      max-width:1100px;
+      margin-left:auto;margin-right:auto;
+    }
+    footer a{color:#2563eb;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+    code{background:#f1f5f9;border:1px solid #e2e8f0;padding:1px 6px;border-radius:999px}
   </style>
 </head>
 <body>
-  <header>Product Picks</header>
+  <header>
+    <div class="h">Product Picks</div>
+  </header>
+
   <div class="wrap">
-    <div class="top">
-      <div class="pill">Market: <code>${escapeHtml(upper(market))}</code> &nbsp; ASIN: <code>${escapeHtml(upper(asinKey))}</code></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <a class="btn secondary" href="${escapeHtml(SITE_ORIGIN + "/index.html")}">Back</a>
-        <button class="btn secondary" id="copyBtn" type="button">Contact / Copy</button>
+    <div class="topbar">
+      <div class="left">
+        <div class="title">Product Reference</div>
+        <div class="meta">Market: ${escapeHtml(upper(market))} · ASIN: ${escapeHtml(upper(asin))} · Key: ${escapeHtml(upper(asinKey))}</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="${escapeHtml(backUrl)}">← Back</a>
+        <button class="btn" id="copyLinkBtn" type="button">Copy page link</button>
+        <button class="btn" id="copyBtn" type="button">Contact / Copy</button>
       </div>
     </div>
 
@@ -122,26 +215,42 @@ function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
         <img id="img" src="${escapeHtml(viewImg || "")}" alt="Product image" />
       </div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-        <a class="btn primary" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener">View on Amazon</a>
-        <button class="btn secondary" id="copyLinkBtn" type="button">Copy page link</button>
+      <div class="noteBox">
+        <div class="t">Selection note</div>
+        <div>Chosen for straightforward use and clear selection steps.</div>
+        <div>• Check: size/variant selection and what's included.</div>
+        <div>• Tip: confirm seller/fulfillment and return terms on Amazon.</div>
       </div>
 
-      <div class="note">
+      <div class="ctaRow">
+        <a class="btn primary" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener">View on Amazon</a>
+        <button class="btn" id="copyBtn2" type="button">Contact / Copy</button>
+      </div>
+
+      <div class="disclosure">
         <b>Disclosure:</b> As an Amazon Associate, we earn from qualifying purchases.
         This is an independent site and is not endorsed by Amazon. Purchases are completed on Amazon via the product page.
       </div>
-
-      <footer>
-        <div><a class="link" href="${escapeHtml(SITE_ORIGIN + "/privacy.html")}">Privacy Policy</a> · <a class="link" href="${escapeHtml(SITE_ORIGIN + "/terms.html")}">Terms</a></div>
-      </footer>
     </div>
+
+    <footer>
+      <div><b>Affiliate disclosure:</b> As an Amazon Associate, we earn from qualifying purchases.</div>
+      <div><b>Independence:</b> This site is not an official Amazon website and is not endorsed by Amazon.</div>
+      <div>Links: “View on Amazon” redirects to Amazon. Amazon may use cookies for tracking qualifying purchases.</div>
+      <div style="margin-top:6px">
+        <a href="${escapeHtml(SITE_ORIGIN + "/privacy.html")}">Privacy Policy</a> ·
+        <a href="${escapeHtml(SITE_ORIGIN + "/terms.html")}">Terms</a>
+      </div>
+      <div>© 2025 ama.omino.top</div>
+    </footer>
   </div>
 
 <script>
 (function(){
   var copyBtn = document.getElementById("copyBtn");
+  var copyBtn2 = document.getElementById("copyBtn2");
   var copyLinkBtn = document.getElementById("copyLinkBtn");
+
   function copyText(t){
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(t);
@@ -149,15 +258,24 @@ function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
       prompt("Copy:", t);
     }
   }
-  copyBtn.addEventListener("click", function(){
+
+  function doCopy(){
     copyText("Market: ${escapeHtml(upper(market))}\\nASIN: ${escapeHtml(upper(asin))}\\nPage: " + location.href);
+    var old1 = copyBtn.textContent;
+    var old2 = copyBtn2.textContent;
     copyBtn.textContent = "Copied";
-    setTimeout(()=>copyBtn.textContent="Contact / Copy", 900);
-  });
+    copyBtn2.textContent = "Copied";
+    setTimeout(function(){ copyBtn.textContent = old1; copyBtn2.textContent = old2; }, 900);
+  }
+
+  copyBtn.addEventListener("click", doCopy);
+  copyBtn2.addEventListener("click", doCopy);
+
   copyLinkBtn.addEventListener("click", function(){
     copyText(location.href);
+    var old = copyLinkBtn.textContent;
     copyLinkBtn.textContent = "Copied";
-    setTimeout(()=>copyLinkBtn.textContent="Copy page link", 900);
+    setTimeout(function(){ copyLinkBtn.textContent = old; }, 900);
   });
 
   // img fallback to original (non-proxy) if proxy fails
@@ -168,13 +286,6 @@ function buildPageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
 </script>
 </body>
 </html>`;
-}
-
-function normalizeList(json) {
-  // 兼容：数组 或 {items:[...]}
-  if (Array.isArray(json)) return json;
-  if (json && Array.isArray(json.items)) return json.items;
-  return [];
 }
 
 function main() {
@@ -191,6 +302,7 @@ function main() {
 
   const all = [...active, ...archive].filter(p => p && p.market && p.asin);
 
+  // stable ordering -> stable asinKey assignment
   all.sort((a, b) => {
     const ma = upper(a.market), mb = upper(b.market);
     if (ma !== mb) return ma.localeCompare(mb);
@@ -213,12 +325,12 @@ function main() {
     const dir = path.join(OUT_DIR, market.toLowerCase(), asinKey);
     ensureDir(dir);
 
-    const html = buildPageHtml({ market, asin, asinKey, imageUrl: img, amazonLink: link });
+    const html = buildWhitePageHtml({ market, asin, asinKey, imageUrl: img, amazonLink: link });
     fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
     count++;
   }
 
-  console.log(`[p-pages] generated ${count} pages under /p`);
+  console.log(`[preview] generated ${count} pages under /p`);
 }
 
 main();
