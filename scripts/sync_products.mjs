@@ -267,6 +267,20 @@ async function downloadOgImage(imageUrl, outAbsNoExt) {
   return null;
 }
 
+// ====== NEW (incremental OG reuse helpers) ======
+function findExistingOgFile(ogDirAbs, market, asin) {
+  const base = path.join(ogDirAbs, market.toLowerCase(), asin);
+  const jpg = base + ".jpg";
+  const png = base + ".png";
+  if (fs.existsSync(jpg)) return { ext: "jpg", abs: jpg };
+  if (fs.existsSync(png)) return { ext: "png", abs: png };
+  return null;
+}
+function ogUrlFor(market, asin, ext) {
+  return `${SITE_ORIGIN}/${OG_DIR}/${market.toLowerCase()}/${asin}.${ext}`;
+}
+// ====== END NEW ======
+
 // ================== /p PAGE GENERATOR ==================
 function buildPreviewHtml({ market, asin, ogImageUrl }) {
   const mLower = String(market).toLowerCase();
@@ -321,13 +335,16 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   const outDirAbs = siteJoin(OUT_DIR);
   const ogDirAbs = siteJoin(OG_DIR);
 
-  // 全量重建 /p
+  // 全量重建 /p（保留不变）
   if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
   ensureDir(outDirAbs);
 
-  // /og 也重建（只删目录，不影响根部的 og-placeholder.jpg）
-  if (fs.existsSync(ogDirAbs)) fs.rmSync(ogDirAbs, { recursive: true, force: true });
+  // /og 不再全量重建：保留已有文件，结合 manifest 仅为新增/变更项下载（大幅缩短耗时）
   ensureDir(ogDirAbs);
+
+  // OG manifest（记录每个 market|asin 对应的源图与本地文件扩展名）
+  const ogManifestPath = path.join(ogDirAbs, "og-manifest.json");
+  const ogManifest = safeReadJson(ogManifestPath, {});
 
   // 注意：archiveList 现在是“全量最新库”，因此下架也会生成 /p 页，避免断链
   const all = [...(activeList || []), ...(archiveList || [])].filter((p) => p && p.market && p.asin);
@@ -356,27 +373,75 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     const asin = upper(p.asin);
     const img = norm(p.image_url);
 
-    // 1) OG image download -> /og/{market}/{asin}.jpg|png
+    // 1) OG image download -> /og/{market}/{asin}.jpg|png (incremental)
+    // 规则：
+    // - 如果 manifest 里记录的 src 与当前 image_url 相同，且本地文件存在 => 直接复用（跳过下载）
+    // - 若 src 变化或本地文件不存在 => 尝试下载；成功则更新 manifest；失败则如有旧文件则继续复用，否则 placeholder
     let ogImageUrl = "";
-    if (img) {
+
+    const k = keyOf({ market, asin });
+
+    // 先尝试复用旧文件（若存在）
+    const existing = findExistingOgFile(ogDirAbs, market, asin);
+    const rec = ogManifest && typeof ogManifest === "object" ? (ogManifest[k] || null) : null;
+    const desiredSrc = img ? safeHttps(img) : "";
+
+    const canReuse =
+      !!existing &&
+      !!rec &&
+      rec.ext === existing.ext &&
+      String(rec.src || "") === String(desiredSrc || "");
+
+    if (canReuse) {
+      ogImageUrl = ogUrlFor(market, asin, existing.ext);
+      ogOk++;
+      // console.log(`[og] reuse ${market}/${asin}.${existing.ext}`);
+    } else if (img) {
+      // 需要下载或刷新
       try {
         const outNoExt = path.join(ogDirAbs, market.toLowerCase(), asin);
         const r = await downloadOgImage(img, outNoExt);
         if (r?.ext) {
-          ogImageUrl = `${SITE_ORIGIN}/${OG_DIR}/${market.toLowerCase()}/${asin}.${r.ext}`;
+          ogImageUrl = ogUrlFor(market, asin, r.ext);
           ogOk++;
+          ogManifest[k] = {
+            src: String(desiredSrc || ""),
+            ext: r.ext,
+            bytes: r.bytes,
+            at: Date.now(),
+          };
           console.log(`[og] ok ${market}/${asin}.${r.ext} (${r.bytes} bytes)`);
         } else {
-          ogFail++;
-          console.log(`[og] fail ${market}/${asin} -> placeholder`);
+          // 下载失败：如果已有旧文件，则继续用旧文件；否则 placeholder
+          if (existing) {
+            ogImageUrl = ogUrlFor(market, asin, existing.ext);
+            ogOk++;
+            console.log(`[og] keep-old ${market}/${asin}.${existing.ext} (download failed)`);
+          } else {
+            ogFail++;
+            console.log(`[og] fail ${market}/${asin} -> placeholder`);
+          }
         }
       } catch {
-        ogFail++;
-        console.log(`[og] error ${market}/${asin} -> placeholder`);
+        if (existing) {
+          ogImageUrl = ogUrlFor(market, asin, existing.ext);
+          ogOk++;
+          console.log(`[og] keep-old ${market}/${asin}.${existing.ext} (error)`);
+        } else {
+          ogFail++;
+          console.log(`[og] error ${market}/${asin} -> placeholder`);
+        }
       }
     } else {
-      ogFail++;
-      console.log(`[og] no image_url ${market}/${asin} -> placeholder`);
+      // 没有 image_url：若有旧文件仍可用；否则 placeholder
+      if (existing) {
+        ogImageUrl = ogUrlFor(market, asin, existing.ext);
+        ogOk++;
+        console.log(`[og] keep-old ${market}/${asin}.${existing.ext} (no image_url)`);
+      } else {
+        ogFail++;
+        console.log(`[og] no image_url ${market}/${asin} -> placeholder`);
+      }
     }
 
     // 2) /p page
@@ -389,6 +454,13 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
 
   console.log(`[p] generated ${pageCount} pages under ${SITE_DIR ? SITE_DIR + "/" : ""}${OUT_DIR}`);
   console.log(`[og] downloaded ok=${ogOk}, failed=${ogFail} (fallback to og-placeholder.jpg)`);
+
+  // 写入 manifest（用于下次跳过未变更项）
+  try {
+    writeJsonPretty(ogManifestPath, ogManifest || {});
+  } catch (e) {
+    console.warn("[warn] write og-manifest.json failed:", e?.message || e);
+  }
 }
 
 // ================== MAIN ==================
@@ -510,9 +582,8 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
 
   // products.json 给一个“新到旧”默认排序（前端也可再排序）
   const nextProducts = Array.from(activeMap.values()).sort((a, b) => {
-  return Number(a._idx || 0) - Number(b._idx || 0);
-});
-
+    return Number(a._idx || 0) - Number(b._idx || 0);
+  });
 
   // 从 active 消失的旧数据 -> archive（当 CSV 彻底删除该产品时仍保留历史）
   const nextKeys = new Set(nextProducts.map(keyOf));
