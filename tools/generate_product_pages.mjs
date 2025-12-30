@@ -1,7 +1,11 @@
 // tools/generate_product_pages.mjs
 // Generate /p/{market}/{asinKey}/index.html for stable share URLs (WhatsApp/Telegram).
-// This version renders a "white UI product page" (matches your original product page style),
-// while keeping OG/Twitter meta stable with images.weserv.nl proxy.
+// FINAL VERSION (direct static product page, NO redirect to homepage).
+// Key changes:
+// 1) Filter out non-Amazon items: ASIN that is ALL DIGITS (e.g., Walmart) will be skipped.
+// 2) /p pages are real standalone pages (white UI) and will NOT redirect to "/?open=...".
+// 3) OG/Twitter meta uses images.weserv.nl proxy for stable HTTPS previews.
+// 4) Deterministic asinKey assignment with stable ordering + duplicate handling.
 
 import fs from "fs";
 import path from "path";
@@ -14,25 +18,62 @@ const ARCHIVE_JSON = path.join(REPO_ROOT, "archive.json");
 const OUT_DIR = path.join(REPO_ROOT, "p");
 
 function readJson(p, fallback) {
-  try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return fallback; }
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf-8"));
+  } catch {
+    return fallback;
+  }
 }
-function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
-function norm(s) { return String(s ?? "").trim(); }
-function upper(s) { return norm(s).toUpperCase(); }
+function ensureDir(p) {
+  fs.mkdirSync(p, { recursive: true });
+}
+function norm(s) {
+  return String(s ?? "").trim();
+}
+function upper(s) {
+  return norm(s).toUpperCase();
+}
 function escapeHtml(str) {
   return String(str ?? "")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
-function safeHttps(url) { return norm(url).replace(/^http:\/\//i, "https://"); }
+function safeHttps(url) {
+  return norm(url).replace(/^http:\/\//i, "https://");
+}
 
+function normalizeList(json) {
+  if (Array.isArray(json)) return json;
+  if (json && Array.isArray(json.items)) return json.items;
+  return [];
+}
+
+// --- ASIN rules ---
+// Amazon ASIN is typically 10 chars, letters+digits (often starts with B...).
+// Your rule: Walmart/other platform ASIN are all digits => hide them.
+function isAllDigitsAsin(asin) {
+  const a = upper(asin);
+  return a.length > 0 && /^[0-9]+$/.test(a);
+}
+// Allow only "Amazon-like" asin for page generation.
+// We strictly exclude ALL-DIGITS. Everything else we keep (to avoid accidental hiding).
+function isAllowedAsin(asin) {
+  if (!asin) return false;
+  if (isAllDigitsAsin(asin)) return false;
+  return true;
+}
+
+// --- image proxy ---
 function toWeservOg(url) {
   const u = safeHttps(url);
   if (!u) return "";
   const cleaned = u.replace(/^https?:\/\//i, "");
   return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}&w=1200&h=630&fit=cover&output=jpg`;
 }
-function toWeservView(url){
+function toWeservView(url) {
   const u = safeHttps(url);
   if (!u) return "";
   const cleaned = u.replace(/^https?:\/\//i, "");
@@ -53,26 +94,23 @@ function annotateAsinKeys(list) {
   }
 }
 
-function normalizeList(json) {
-  if (Array.isArray(json)) return json;
-  if (json && Array.isArray(json.items)) return json.items;
-  return [];
-}
-
 function buildWhitePageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
   const mLower = String(market).toLowerCase();
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}/`;
   const pageUrl = SITE_ORIGIN + pagePath;
 
   const ogTitle = `Product Reference • ${upper(market)} • ${asinKey}`;
-  const ogDesc = `Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.`;
+  const ogDesc =
+    "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
   const ogImage = toWeservOg(imageUrl) || `${SITE_ORIGIN}/og-placeholder.jpg`;
 
   const viewImg = toWeservView(imageUrl);
-  const openUrl = `${SITE_ORIGIN}/open.html?market=${encodeURIComponent(upper(market))}&asin=${encodeURIComponent(upper(asin))}` +
-                  (amazonLink ? `&link=${encodeURIComponent(amazonLink)}` : "");
+  // View on Amazon -> uses open.html to avoid referrer/cookie issues & keep behavior consistent
+  const openUrl =
+    `${SITE_ORIGIN}/open.html?market=${encodeURIComponent(upper(market))}&asin=${encodeURIComponent(upper(asin))}` +
+    (amazonLink ? `&link=${encodeURIComponent(amazonLink)}` : "");
 
-  // Back: prefer site root list
+  // Back: prefer root list (index.html)
   const backUrl = `${SITE_ORIGIN}/index.html`;
 
   return `<!doctype html>
@@ -99,6 +137,8 @@ function buildWhitePageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
 
+  <meta name="robots" content="index,follow" />
+
   <style>
     :root{
       --bg:#eef2f6;
@@ -106,7 +146,6 @@ function buildWhitePageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
       --border:#e5e7eb;
       --text:#111827;
       --muted:#6b7280;
-      --dark:#0f172a;
       --btn:#0b1220;
       --btnText:#ffffff;
     }
@@ -201,7 +240,9 @@ function buildWhitePageHtml({ market, asin, asinKey, imageUrl, amazonLink }) {
     <div class="topbar">
       <div class="left">
         <div class="title">Product Reference</div>
-        <div class="meta">Market: ${escapeHtml(upper(market))} · ASIN: ${escapeHtml(upper(asin))} · Key: ${escapeHtml(upper(asinKey))}</div>
+        <div class="meta">Market: ${escapeHtml(upper(market))} · ASIN: ${escapeHtml(
+    upper(asin)
+  )} · Key: ${escapeHtml(upper(asinKey))}</div>
       </div>
       <div class="actions">
         <a class="btn" href="${escapeHtml(backUrl)}">← Back</a>
@@ -300,13 +341,24 @@ function main() {
   const active = normalizeList(activeRaw);
   const archive = normalizeList(archiveRaw);
 
-  const all = [...active, ...archive].filter(p => p && p.market && p.asin);
+  // Union, filter required fields, and filter out ALL-DIGITS "asin" (Walmart/other).
+  const all = [...active, ...archive]
+    .filter((p) => p && p.market && p.asin)
+    .map((p) => ({
+      market: upper(p.market),
+      asin: upper(p.asin),
+      link: norm(p.link),
+      image_url: norm(p.image_url),
+    }))
+    .filter((p) => isAllowedAsin(p.asin));
 
   // stable ordering -> stable asinKey assignment
   all.sort((a, b) => {
-    const ma = upper(a.market), mb = upper(b.market);
+    const ma = upper(a.market),
+      mb = upper(b.market);
     if (ma !== mb) return ma.localeCompare(mb);
-    const aa = upper(a.asin), ab = upper(b.asin);
+    const aa = upper(a.asin),
+      ab = upper(b.asin);
     if (aa !== ab) return aa.localeCompare(ab);
     return 0;
   });
@@ -330,7 +382,7 @@ function main() {
     count++;
   }
 
-  console.log(`[preview] generated ${count} pages under /p`);
+  console.log(`[preview] generated ${count} pages under /p (digits-only ASIN skipped)`);
 }
 
 main();
