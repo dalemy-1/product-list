@@ -1041,7 +1041,7 @@
         <div class="detail-top">
           <div class="detail-head">
             <p class="detail-title">Loading…</p>
-            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b> · Key: <b>${escapeHtml(route.key||"")}</b></p>
+            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b></p>
           </div>
           <button class="btn secondary" onclick="goHome()">← Back to list</button>
         </div>
@@ -1063,7 +1063,7 @@
         <div class="detail-top">
           <div class="detail-head">
             <p class="detail-title">Product not found</p>
-            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b> · Key: <b>${escapeHtml(route.key||"")}</b></p>
+            <p class="detail-sub">Market: <b>${escapeHtml(route.market||"")}</b></p>
           </div>
           <button class="btn secondary" onclick="goHome()">← Back to list</button>
         </div>
@@ -1112,7 +1112,7 @@
           <div class="detail-head">
             <p class="detail-title">Product Reference</p>
             <p class="detail-sub">
-              Market: <b>${escapeHtml(market)}</b> · ASIN: <b>${escapeHtml(asinBase)}</b> · Key: <b>${escapeHtml(asinKey)}</b>
+              Market: <b>${escapeHtml(market)}</b> · ASIN: <b>${escapeHtml(asinBase)}</b>
               · Keyword: <b>${escapeHtml(keywordText || "—")}</b>
               · Store: <b>${escapeHtml(storeText || "—")}</b>
               ${isArchived ? ' · <span style="color:#b45309;font-weight:800;">Archived</span>' : ''}
