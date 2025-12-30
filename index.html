@@ -697,11 +697,14 @@
       if (active.status !== "fulfilled") throw active.reason;
       if (!Array.isArray(active.value)) throw new Error("products.json is not an array");
 
+      // NOTE: Only minimal additions: keyword/store are kept so detail title can display them.
       ALL_PRODUCTS = active.value.map((p, idx) => ({
         _updated: Number(p._updated ?? 0),
         market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
         asin: String(p.asin ?? p.ASIN ?? "").trim(),
         title: String(p.title ?? p.Title ?? "").trim(),
+        keyword: String(p.keyword ?? p.Keyword ?? "").trim(),
+        store: String(p.store ?? p.Store ?? "").trim(),
         link: String(p.link ?? p.Link ?? "").trim(),
         image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
         __idx: idx
@@ -712,6 +715,8 @@
           market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
           asin: String(p.asin ?? p.ASIN ?? "").trim(),
           title: String(p.title ?? p.Title ?? "").trim(),
+          keyword: String(p.keyword ?? p.Keyword ?? "").trim(),
+          store: String(p.store ?? p.Store ?? "").trim(),
           link: String(p.link ?? p.Link ?? "").trim(),
           image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
           __aidx: idx
@@ -1014,10 +1019,13 @@
   }
 
   function encodeProductForOnclick(p){
+    // NOTE: Only minimal additions: keyword/store included so detail title can display them.
     const safe = {
       market: p.market || "",
       asin: p.asin || "",
       title: p.title || "",
+      keyword: p.keyword || "",
+      store: p.store || "",
       link: p.link || "",
       image_url: p.image_url || ""
     };
@@ -1093,6 +1101,10 @@
       ? `<a class="btn cta" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
       : `<button class="btn cta" onclick="alert('No valid Amazon link for this item.');">View on Amazon</button>`;
 
+    // NOTE: Only change requested by you (display keyword/store in title area).
+    const keywordText = String(p.keyword || "").trim();
+    const storeText = String(p.store || "").trim();
+
     const box = document.getElementById("detailPage");
     box.innerHTML = `
       <div class="detail-wrap">
@@ -1101,6 +1113,8 @@
             <p class="detail-title">Product Reference</p>
             <p class="detail-sub">
               Market: <b>${escapeHtml(market)}</b> · ASIN: <b>${escapeHtml(asinBase)}</b> · Key: <b>${escapeHtml(asinKey)}</b>
+              · Keyword: <b>${escapeHtml(keywordText || "—")}</b>
+              · Store: <b>${escapeHtml(storeText || "—")}</b>
               ${isArchived ? ' · <span style="color:#b45309;font-weight:800;">Archived</span>' : ''}
             </p>
           </div>
@@ -1343,4 +1357,3 @@
 </script>
 </body>
 </html>
-
