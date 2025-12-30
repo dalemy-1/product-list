@@ -661,13 +661,15 @@
       if (!Array.isArray(active.value)) throw new Error("products.json is not an array");
 
       ALL_PRODUCTS = active.value.map((p, idx) => ({
-        market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
+      _updated: Number(p._updated ?? 0),
+market: String(p.market ?? p.Market ?? p.MARKET ?? "").trim().toUpperCase(),
         asin: String(p.asin ?? p.ASIN ?? "").trim(),
         title: String(p.title ?? p.Title ?? "").trim(),
         link: String(p.link ?? p.Link ?? "").trim(),
         image_url: String(p.image_url ?? p.image ?? p.Image ?? "").trim(),
         __idx: idx
-      }));
+      
+    }));
 
       if (archived.status === "fulfilled" && Array.isArray(archived.value)){
         ARCHIVE_PRODUCTS = archived.value.map((p, idx) => ({
@@ -1318,5 +1320,4 @@
 </script>
 </body>
 </html>
-
 
