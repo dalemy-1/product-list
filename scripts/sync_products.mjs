@@ -339,9 +339,14 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
   const outDirAbs = siteJoin(OUT_DIR);
   const ogDirAbs = siteJoin(OG_DIR);
 
-  // 全量重建 /p（保留不变）
-  if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
-  ensureDir(outDirAbs);
+  // 为避免 Actions 失败时把既有 /p 清空导致“独立页瞬间全部失效”，这里采用“临时目录生成 + 原子替换”的方式：
+  // 1) 生成到 /p__tmp
+  // 2) 全部生成成功后，再替换为 /p
+  const outTmpAbs = siteJoin(`${OUT_DIR}__tmp`);
+
+  // 清理临时目录
+  if (fs.existsSync(outTmpAbs)) fs.rmSync(outTmpAbs, { recursive: true, force: true });
+  ensureDir(outTmpAbs);
 
   // /og 不再全量重建：保留已有文件，结合 manifest 仅为新增/变更项下载（大幅缩短耗时）
   ensureDir(ogDirAbs);
@@ -449,12 +454,21 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     }
 
     // 2) /p page
-    const dir = path.join(outDirAbs, market.toLowerCase(), asin);
+    const dir = path.join(outTmpAbs, market.toLowerCase(), asin);
     ensureDir(dir);
     const html = buildPreviewHtml({ market, asin, ogImageUrl: ogImageUrl || OG_PLACEHOLDER_URL, dstUrl: p.link || "" });
     fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
     pageCount++;
   }
+
+// 3) 原子替换：用临时目录覆盖正式 /p 目录
+try {
+  if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
+  fs.renameSync(outTmpAbs, outDirAbs);
+} catch (e) {
+  // 如果替换失败，至少不要把旧 /p 删除掉（上面已删），这里兜底为：保留 tmp 目录，便于排查
+  console.warn("[warn] swap /p__tmp -> /p failed:", e?.message || e);
+}
 
   console.log(`[p] generated ${pageCount} pages under ${SITE_DIR ? SITE_DIR + "/" : ""}${OUT_DIR}`);
   console.log(`[og] downloaded ok=${ogOk}, failed=${ogFail} (fallback to og-placeholder.jpg)`);
