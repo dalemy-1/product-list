@@ -282,16 +282,20 @@ function ogUrlFor(market, asin, ext) {
 // ====== END NEW ======
 
 // ================== /p PAGE GENERATOR ==================
-function buildPreviewHtml({ market, asin, ogImageUrl }) {
+function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   const mLower = String(market).toLowerCase();
   const asinKey = String(asin).toUpperCase();
 
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
-  const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}`;
+  const dst = String(dstUrl || "").trim();
+  const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}${dst ? `&dst=${encodeURIComponent(dst)}` : ""}`;
 
   const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
+
+  // dstUrl: optional destination link from CSV (e.g., Walmart). It is forwarded to the front-end
+  // template via ?dst=... so the template can set the primary CTA target without changing UI.
 
   const ogImage = ogImageUrl || OG_PLACEHOLDER_URL;
   const ogType = ogImage.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
@@ -447,7 +451,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     // 2) /p page
     const dir = path.join(outDirAbs, market.toLowerCase(), asin);
     ensureDir(dir);
-    const html = buildPreviewHtml({ market, asin, ogImageUrl: ogImageUrl || OG_PLACEHOLDER_URL });
+    const html = buildPreviewHtml({ market, asin, ogImageUrl: ogImageUrl || OG_PLACEHOLDER_URL, dstUrl: p.link || "" });
     fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
     pageCount++;
   }
