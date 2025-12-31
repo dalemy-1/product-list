@@ -793,7 +793,7 @@ function getDstFromLocation(){
   }
 
   function getVisibleProducts(){
-  const m = currentMarket();
+  const current = currentMarket();
   const qRaw = (document.getElementById("searchInput").value || "").trim();
   const q = qRaw.toLowerCase();
 
@@ -805,42 +805,59 @@ function getDstFromLocation(){
     const asin = String(p.asin || "").trim();
     if (!asin) return false;
 
-    // For numeric IDs (non-Amazon), only allow them to appear when the user searches the exact full ID.
+    // 数字ID仅允许“精确完整搜索”出现
     if (shouldHideNonAmazonAsin(asin)){
       return isDigitsQ && String(asin).trim() === qRaw;
     }
 
+    // 你这里也可以改成严格等于：asin.toLowerCase() === q
     return String(asin).toLowerCase().includes(q);
   }
 
-  // Base list: active products only (this is your compliant listing behavior)
+  // 搜索为空：保持原逻辑——只看当前 market（不变）
+  if (!q){
+    let list = (ALL_PRODUCTS || [])
+      .filter(p => String(p.market || "").trim().toUpperCase() === current)
+      .filter(p => !shouldHideNonAmazonAsin(p.asin))
+      .map(p => ({...p, _archived:false}));
+
+    list = dedupeByMarketAsinKeepFirst(list);
+
+    list.sort((a, b) => {
+      const ka = archivedKeySet.has(keyOf(a.market, a.asin)) ? 1 : 0;
+      const kb = archivedKeySet.has(keyOf(b.market, b.asin)) ? 1 : 0;
+      if (ka !== kb) return ka - kb;
+
+      const ua = Number(a._updated || 0);
+      const ub = Number(b._updated || 0);
+      if (ub !== ua) return ub - ua;
+
+      const ia = Number(a._idx || 0);
+      const ib = Number(b._idx || 0);
+      return ib - ia;
+    });
+
+    return list;
+  }
+
+  // 搜索非空：开启“全站搜索”（跨所有 market）
   let list = (ALL_PRODUCTS || [])
-    .filter(p => String(p.market || "").trim().toUpperCase() === m)
-    .filter(p => {
-      // Hide numeric IDs in normal browsing
-      if (!q && shouldHideNonAmazonAsin(p.asin)) return false;
-      return true;
-    })
     .filter(matchQuery)
     .map(p => ({...p, _archived:false}));
 
-  // Search extension: when user searches, also surface archived matches (so “down products” can be found by ASIN and opened)
-  if (q){
-    const archivedMatches = (ARCHIVE_PRODUCTS || [])
-      .filter(p => String(p.market || "").trim().toUpperCase() === m)
-      .filter(matchQuery)
-      .map(p => ({...p, _archived:true}));
+  // 搜索时，把 archive 也拉进来（下架也可搜到并打开独立页）
+  const archivedMatches = (ARCHIVE_PRODUCTS || [])
+    .filter(matchQuery)
+    .map(p => ({...p, _archived:true}));
 
-    // Put active first, archived second (dedupe keeps first)
-    list = list.concat(archivedMatches);
-  }
-
+  list = list.concat(archivedMatches);
   list = dedupeByMarketAsinKeepFirst(list);
 
+  // 排序：上架优先，其次下架；再按更新时间/原顺序
   list.sort((a, b) => {
-    const ka = archivedKeySet.has(keyOf(a.market, a.asin)) ? 1 : 0;
-    const kb = archivedKeySet.has(keyOf(b.market, b.asin)) ? 1 : 0;
-    if (ka !== kb) return ka - kb;
+    const aa = a._archived ? 1 : 0;
+    const bb = b._archived ? 1 : 0;
+    if (aa !== bb) return aa - bb;
 
     const ua = Number(a._updated || 0);
     const ub = Number(b._updated || 0);
@@ -853,6 +870,7 @@ function getDstFromLocation(){
 
   return list;
 }
+
 
   function showEmptyByState(visibleCount){
     const el = document.getElementById("emptyHint");
@@ -1399,3 +1417,4 @@ function getDstFromLocation(){
 </script>
 </body>
 </html>
+
