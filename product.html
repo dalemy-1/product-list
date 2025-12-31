@@ -104,10 +104,7 @@
     const v = normalizeAsin(s);
     return /^[A-Z0-9]{10}$/.test(v) && /[A-Z]/.test(v);
   }
-  function normalizeUrl(u){
-    const s=String(u||"").trim();
-    return /^https?:\/\//i.test(s)?s:"";
-  }
+  function normalizeUrl(u){const s=String(u||"").trim(); return /^https?:\/\//i.test(s)?s:"";}
   function isHttps(){return String(location.protocol||"").toLowerCase()==="https:";}
   function toWeserv(url){
     const cleaned = String(url||"").replace(/^https?:\/\//i,"");
@@ -170,66 +167,48 @@
     };
   }
 
-  // === 关键：同时支持两种传参方式
-  // 1) /p/uk/B0XXXXXXXXX
-  // 2) /product.html?market=UK&asin=B0XXXXXXXXX
-  function getContextFromPathOrQuery(){
-    const url = new URL(location.href);
+  // 关键：同时支持
+  // 1) /p/us/B0XXXXXXX
+  // 2) ?market=US&asin=B0XXXXXXX
+  function getParams(){
+    let market="", asin="";
+    let fromPath=false;
 
-    // 优先从 pathname 解析 /p/{market}/{asin}
-    let p = url.pathname || "";
-    if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
+    // 尝试从 path 解析
+    let p = location.pathname || "/";
+    if(p.length>1 && p.endsWith("/")) p = p.slice(0,-1);
     const mm = p.match(/^\/p\/([a-zA-Z]{2})\/([A-Za-z0-9]{10})$/i);
-    if (mm){
-      return {
-        market: normalizeMarket(mm[1]),
-        asin: normalizeAsin(mm[2]),
-        pathMarket: normalizeMarket(mm[1]),
-        pathAsin: normalizeAsin(mm[2])
-      };
+    if(mm){
+      market = normalizeMarket(mm[1]||"");
+      asin   = normalizeAsin(mm[2]||"");
+      fromPath = true;
     }
 
-    // 回退读 query
-    const sp = url.searchParams;
-    return {
-      market: normalizeMarket(sp.get("market")||""),
-      asin: normalizeAsin(sp.get("asin")||""),
-      pathMarket: "",
-      pathAsin: ""
-    };
+    // fallback：从 query 解析（兼容旧链接）
+    if(!market || !asin){
+      const sp = new URLSearchParams(location.search||"");
+      market = normalizeMarket(sp.get("market")||"");
+      asin   = normalizeAsin(sp.get("asin")||"");
+    }
+
+    // 记录是否带了 query（尤其 dst）
+    const hasQuery = !!(location.search && location.search.length>1);
+    return { market, asin, fromPath, hasQuery };
   }
 
-  // === 关键：dst 清理地址栏，但不丢失跳转目标
-  function dstKey(market, asin){
-    return "dst:" + normalizeMarket(market) + ":" + normalizeAsin(asin);
+  function canonicalPath(market, asin){
+    return `/p/${encodeURIComponent(String(market||"").toLowerCase())}/${encodeURIComponent(String(asin||"").toUpperCase())}`;
   }
 
-  function stashDstAndCleanUrl(market, asin){
-    try{
-      const url = new URL(location.href);
-      const dst = url.searchParams.get("dst");
-      if(!dst) return;
-
-      // 存 sessionStorage（只在当前浏览器会话有效，且不污染 URL）
-      sessionStorage.setItem(dstKey(market, asin), dst);
-
-      // 删除 dst，保持地址栏干净
-      url.searchParams.delete("dst");
-      const clean = url.pathname + (url.search ? url.search : "") + (url.hash ? url.hash : "");
-      history.replaceState(null, "", clean);
-    }catch(e){}
-  }
-
-  function getDst(market, asin){
-    try{
-      const url = new URL(location.href);
-      const qp = url.searchParams.get("dst");
-      if(qp) return qp; // 理论上已被清理前可读到
-    }catch(e){}
-    try{
-      return sessionStorage.getItem(dstKey(market, asin)) || "";
-    }catch(e){
-      return "";
+  // 关键：把地址栏“净化”为 /p/{market}/{asin}（去掉 ?dst=...）
+  function cleanUrlIfNeeded(market, asin){
+    const target = canonicalPath(market, asin);
+    const samePath = (location.pathname || "") === target;
+    const hasQuery = !!(location.search && location.search.length>1);
+    if(!samePath || hasQuery){
+      // 保留 hash（如有）
+      const hash = location.hash || "";
+      history.replaceState(null, "", target + hash);
     }
   }
 
@@ -266,10 +245,7 @@
   }
 
   function renderDetail(p, market, asin, isArchived){
-    // dst 优先（如果是 http/https 才用），否则用数据里的 link
-    const dst = normalizeUrl(getDst(market, asin));
-    const link = dst || normalizeUrl(p.link);
-
+    const link = normalizeUrl(p.link);
     const imgRaw = String(p.image_url||"").trim();
     const imgSrc = normalizeUrl(imgRaw) || PLACEHOLDER;
     const seed = market+"|"+asin;
@@ -284,7 +260,7 @@
 
     const viewAmazon = link
       ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
-      : `<button class="btn" onclick="alert('No valid destination link for this item.')">View on Amazon</button>`;
+      : `<button class="btn" onclick="alert('No valid Amazon link for this item.')">View on Amazon</button>`;
 
     document.getElementById("content").innerHTML = `
       <div class="card">
@@ -316,12 +292,7 @@
   }
 
   async function boot(){
-    const ctx = getContextFromPathOrQuery();
-    const market = ctx.market;
-    const asin = ctx.asin;
-
-    // 先 stash dst 并清理地址栏（确保用户看到的是干净 URL）
-    if(market && asin) stashDstAndCleanUrl(market, asin);
+    const { market, asin } = getParams();
 
     // 防“纯数字 / 非Amazon”
     if(!market || !asin || isAllDigits(asin) || !isAmazonLikeAsin(asin)){
@@ -329,7 +300,11 @@
       return;
     }
 
-    const pageLink = location.origin + `/p/${encodeURIComponent(market.toLowerCase())}/${encodeURIComponent(asin)}`;
+    // 关键：先净化 URL（去掉 ?dst=...，保持 /p/xx/ASIN）
+    cleanUrlIfNeeded(market, asin);
+
+    // Copy link 一律复制净化后的 canonical
+    const pageLink = location.origin + canonicalPath(market, asin);
     document.getElementById("copyBtn").onclick = () => {
       copyText(pageLink).then(()=>alert("Copied page link!")).catch(()=>alert("Copy failed"));
     };
