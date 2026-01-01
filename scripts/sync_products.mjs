@@ -282,37 +282,56 @@ function ogUrlFor(market, asin, ext) {
 // ====== END NEW ======
 
 // ================== /p PAGE GENERATOR ==================
+// Use product.html as the real independent page template, and inject per-product OG tags.
+// This keeps the full independent page UI while ensuring canonical URL (no ?dst= in address bar).
+let __PRODUCT_TEMPLATE_CACHE__ = null;
+
 function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   const mLower = String(market).toLowerCase();
   const asinKey = String(asin).toUpperCase();
 
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
-  const dst = String(dstUrl || "").trim();
-  const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}` + (dst ? `&dst=${encodeURIComponent(dst)}` : "");
+  const canonicalUrl = `${SITE_ORIGIN}${pagePath}`;
 
   const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
 
-  // dstUrl: optional destination link from CSV (e.g., Walmart). It is forwarded to the front-end
-  // template via ?dst=... so the template can set the primary CTA target without changing UI.
-
   const ogImage = ogImageUrl || OG_PLACEHOLDER_URL;
   const ogType = ogImage.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${escapeHtml(ogTitle)}</title>
-  <meta name="description" content="${escapeHtml(ogDesc)}" />
+  // Default destination from CSV (used by product.html when it cannot find link in JSON)
+  const dstDefault = String(dstUrl || "").trim();
+
+  // Load product.html template once (repo root or SITE_DIR root via siteJoin)
+  if (!__PRODUCT_TEMPLATE_CACHE__) {
+    const tplAbs = siteJoin("product.html");
+    if (!fs.existsSync(tplAbs)) {
+      throw new Error(`[p] product.html not found: ${tplAbs}`);
+    }
+    __PRODUCT_TEMPLATE_CACHE__ = fs.readFileSync(tplAbs, "utf-8");
+  }
+
+  let html = __PRODUCT_TEMPLATE_CACHE__;
+
+  // 1) Ensure title is per-product (helps browser tab & previews)
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(ogTitle)}</title>`);
+
+  // 2) Ensure description matches policy text (avoid stale value)
+  html = html.replace(
+    /<meta\s+name=["']description["']\s+content=["'][\s\S]*?["']\s*\/>/i,
+    `<meta name="description" content="${escapeHtml(ogDesc)}" />`
+  );
+
+  // 3) Inject OG/Twitter + canonical into <head>
+  const headInject = `
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Product Picks" />
   <meta property="og:title" content="${escapeHtml(ogTitle)}" />
   <meta property="og:description" content="${escapeHtml(ogDesc)}" />
-  <meta property="og:url" content="${escapeHtml(SITE_ORIGIN + pagePath)}" />
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
   <meta property="og:image" content="${escapeHtml(ogImage)}" />
   <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}" />
   <meta property="og:image:type" content="${ogType}" />
@@ -323,16 +342,58 @@ function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   <meta name="twitter:title" content="${escapeHtml(ogTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
+`;
 
-  <meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" />
-  <noscript><meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" /></noscript>
-</head>
-<body>
+  if (html.includes("</head>")) {
+    // Avoid duplicate injection if template already contains OG tags (idempotent-ish)
+    if (!/property=["']og:title["']/i.test(html)) {
+      html = html.replace("</head>", `${headInject}\n</head>`);
+    } else {
+      // Still ensure canonical exists
+      if (!/<link\s+rel=["']canonical["']/i.test(html)) {
+        html = html.replace("</head>", `\n  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />\n</head>`);
+      }
+    }
+  } else {
+    html = headInject + "\n" + html;
+  }
+
+  // 4) Bridge script:
+  //    - Provide default dst to the template (without requiring ?dst= on canonical URL)
+  //    - Ensure address bar stays canonical (remove ?dst= if present)
+  //
+  // product.html already:
+  //   - reads location.search dst into __DST__
+  //   - calls history.replaceState() to strip ?dst=
+  //   - resolves link via normalizeUrl(p.link) || normalizeUrl(__DST__)
+  //
+  // So here we do NOT force ?dst= on canonical URL.
+  // We only provide a fallback: if there is no ?dst= and template doesn't find p.link, it can use this value.
+  const bridgeScript = `
 <script>
-  location.replace(${JSON.stringify(landing)});
+(function(){
+  try {
+    // Expose a page-scoped fallback destination derived from CSV.
+    // Your product.html can read: window.__DST_FALLBACK__
+    window.__DST_FALLBACK__ = ${JSON.stringify(dstDefault)};
+  } catch(e) {}
+  try {
+    // Ensure canonical path (strip any ?dst=... if present).
+    if (location.search && location.search.length > 1) {
+      history.replaceState(null, "", ${JSON.stringify(pagePath)} + (location.hash || ""));
+    }
+  } catch(e) {}
+})();
 </script>
-</body>
-</html>`;
+`;
+
+  if (html.includes("</body>")) {
+    html = html.replace("</body>", `${bridgeScript}\n</body>`);
+  } else {
+    html += `\n${bridgeScript}\n`;
+  }
+
+  return html;
 }
 
 async function generatePPagesAndOgImages(activeList, archiveList) {
