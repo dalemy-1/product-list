@@ -87,6 +87,26 @@
   const PRODUCTS_JSON_PATH = "/products.json";
   const ARCHIVE_JSON_PATH  = "/archive.json";
 
+  // ============ URL 清理核心 ============
+  // 先把 query 里的 dst 暂存下来（后面 View on Amazon 可用），然后立刻清理地址栏
+  const __ORIGINAL_SEARCH__ = location.search || "";
+  const __SP__ = new URLSearchParams(__ORIGINAL_SEARCH__);
+  const __DST__ = (__SP__.get("dst") || "").trim(); // 你现在的问题就是这个参数
+
+  function canonicalPath(market, asin){
+    return `/p/${encodeURIComponent(String(market||"").toLowerCase())}/${encodeURIComponent(String(asin||"").toUpperCase())}`;
+  }
+
+  // 只要有 query，就清理；并且确保 path 规范化
+  function cleanUrlNow(market, asin){
+    const targetPath = canonicalPath(market, asin);
+    const hash = location.hash || "";
+    if ((location.pathname || "") !== targetPath || (__ORIGINAL_SEARCH__ && __ORIGINAL_SEARCH__.length > 1)){
+      history.replaceState(null, "", targetPath + hash);
+    }
+  }
+  // ====================================
+
   const PLACEHOLDER_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
       <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
@@ -167,49 +187,25 @@
     };
   }
 
-  // 关键：同时支持
+  // 同时支持：
   // 1) /p/us/B0XXXXXXX
-  // 2) ?market=US&asin=B0XXXXXXX
+  // 2) ?market=US&asin=B0XXXXXXX（兼容旧链接）
   function getParams(){
     let market="", asin="";
-    let fromPath=false;
 
-    // 尝试从 path 解析
+    // path 优先
     let p = location.pathname || "/";
     if(p.length>1 && p.endsWith("/")) p = p.slice(0,-1);
     const mm = p.match(/^\/p\/([a-zA-Z]{2})\/([A-Za-z0-9]{10})$/i);
     if(mm){
       market = normalizeMarket(mm[1]||"");
       asin   = normalizeAsin(mm[2]||"");
-      fromPath = true;
-    }
-
-    // fallback：从 query 解析（兼容旧链接）
-    if(!market || !asin){
-      const sp = new URLSearchParams(location.search||"");
+    } else {
+      const sp = new URLSearchParams(__ORIGINAL_SEARCH__ || "");
       market = normalizeMarket(sp.get("market")||"");
       asin   = normalizeAsin(sp.get("asin")||"");
     }
-
-    // 记录是否带了 query（尤其 dst）
-    const hasQuery = !!(location.search && location.search.length>1);
-    return { market, asin, fromPath, hasQuery };
-  }
-
-  function canonicalPath(market, asin){
-    return `/p/${encodeURIComponent(String(market||"").toLowerCase())}/${encodeURIComponent(String(asin||"").toUpperCase())}`;
-  }
-
-  // 关键：把地址栏“净化”为 /p/{market}/{asin}（去掉 ?dst=...）
-  function cleanUrlIfNeeded(market, asin){
-    const target = canonicalPath(market, asin);
-    const samePath = (location.pathname || "") === target;
-    const hasQuery = !!(location.search && location.search.length>1);
-    if(!samePath || hasQuery){
-      // 保留 hash（如有）
-      const hash = location.hash || "";
-      history.replaceState(null, "", target + hash);
-    }
+    return { market, asin };
   }
 
   async function fetchJsonNoCache(url){
@@ -245,7 +241,10 @@
   }
 
   function renderDetail(p, market, asin, isArchived){
-    const link = normalizeUrl(p.link);
+    // link 优先：products.json 里的 link
+    // fallback：如果 link 为空，则用 URL query 里暂存的 dst
+    const link = normalizeUrl(p.link) || normalizeUrl(__DST__);
+
     const imgRaw = String(p.image_url||"").trim();
     const imgSrc = normalizeUrl(imgRaw) || PLACEHOLDER;
     const seed = market+"|"+asin;
@@ -300,8 +299,8 @@
       return;
     }
 
-    // 关键：先净化 URL（去掉 ?dst=...，保持 /p/xx/ASIN）
-    cleanUrlIfNeeded(market, asin);
+    // 关键：一进来就净化地址栏（去掉 ?dst=...）
+    cleanUrlNow(market, asin);
 
     // Copy link 一律复制净化后的 canonical
     const pageLink = location.origin + canonicalPath(market, asin);
@@ -334,7 +333,6 @@
     }
   }
 
-  window.boot = boot;
   window.onImgError = onImgError;
   boot();
 </script>
