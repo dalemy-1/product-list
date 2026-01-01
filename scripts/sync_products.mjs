@@ -282,26 +282,23 @@ function ogUrlFor(market, asin, ext) {
 // ====== END NEW ======
 
 // ================== /p PAGE GENERATOR ==================
-// ================== /p PAGE GENERATOR ==================
 function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   const mLower = String(market).toLowerCase();
   const asinKey = String(asin).toUpperCase();
 
-  // canonical path (no query)
   const pagePath = `/p/${encodeURIComponent(mLower)}/${encodeURIComponent(asinKey)}`;
-
-  // default dst from CSV (may be empty)
-  const dstDefault = String(dstUrl || "").trim();
+  const dst = String(dstUrl || "").trim();
+  const landing = `${SITE_ORIGIN}/?to=${encodeURIComponent(pagePath)}` + (dst ? `&dst=${encodeURIComponent(dst)}` : "");
 
   const ogTitle = `${String(market).toUpperCase()} • ${asinKey}`;
   const ogDesc =
     "Independent product reference. Purchases are completed on Amazon. As an Amazon Associate, we earn from qualifying purchases.";
 
+  // dstUrl: optional destination link from CSV (e.g., Walmart). It is forwarded to the front-end
+  // template via ?dst=... so the template can set the primary CTA target without changing UI.
+
   const ogImage = ogImageUrl || OG_PLACEHOLDER_URL;
   const ogType = ogImage.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-
-  // open.html expects: ?market&asin&link
-  const openBase = `${SITE_ORIGIN}/open.html?market=${encodeURIComponent(mLower)}&asin=${encodeURIComponent(asinKey)}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -310,8 +307,6 @@ function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${escapeHtml(ogTitle)}</title>
   <meta name="description" content="${escapeHtml(ogDesc)}" />
-
-  <link rel="canonical" href="${escapeHtml(SITE_ORIGIN + pagePath)}" />
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Product Picks" />
@@ -329,87 +324,16 @@ function buildPreviewHtml({ market, asin, ogImageUrl, dstUrl }) {
   <meta name="twitter:description" content="${escapeHtml(ogDesc)}" />
   <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
 
-  <style>
-    :root{ --bg:#f4f4f9; --card:#fff; --border:#e5e7eb; --text:#111827; --muted:#6b7280; --primary:#111827; --soft:#f9fafb; }
-    *{ box-sizing:border-box; }
-    body{ margin:0; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
-    .wrap{ max-width: 980px; margin: 0 auto; padding: 18px; }
-    .card{ background:var(--card); border:1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 8px 22px rgba(0,0,0,.05); }
-    .top{ display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-    .title{ font-weight:800; letter-spacing:.2px; font-size: 18px; }
-    .muted{ color:var(--muted); font-size: 13px; line-height: 1.55; margin-top: 6px; }
-    .btns{ display:flex; gap:10px; flex-wrap:wrap; }
-    a.btn{ display:inline-flex; align-items:center; justify-content:center; padding:10px 12px; border-radius: 10px; text-decoration:none; font-weight:700; border:1px solid var(--border); color:var(--text); background:var(--soft); }
-    a.btn.primary{ background:var(--primary); color:#fff; border-color: var(--primary); }
-    .note{ margin-top: 10px; font-size: 12px; color: var(--muted); }
-  </style>
+  <meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" />
+  <noscript><meta http-equiv="refresh" content="0;url=${escapeHtml(landing)}" /></noscript>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="top">
-        <div>
-          <div class="title">${escapeHtml(ogTitle)}</div>
-          <div class="muted">
-            Independent product reference. Purchases are completed on Amazon.
-            As an Amazon Associate, we earn from qualifying purchases.
-          </div>
-        </div>
-        <div class="btns">
-          <a class="btn primary" id="go" href="#" rel="nofollow sponsored noopener" target="_blank">Open on Amazon</a>
-          <a class="btn" id="copy" href="#" onclick="return false;">Copy page link</a>
-        </div>
-      </div>
-      <div class="note">
-        Tip: This page’s canonical URL is <span id="canon"></span>
-      </div>
-    </div>
-  </div>
-
 <script>
-(function(){
-  var pagePath = ${JSON.stringify(pagePath)};
-  var canonical = ${JSON.stringify(SITE_ORIGIN)} + pagePath;
-  var openBase = ${JSON.stringify(openBase)};
-  var dstDefault = ${JSON.stringify(dstDefault)};
-
-  // 1) read dst from query first (higher priority), else use CSV default
-  var sp = new URLSearchParams(location.search || "");
-  var dst = (sp.get("dst") || "").trim() || (dstDefault || "").trim();
-
-  // 2) clean address bar to canonical (remove ?dst= etc.)
-  try { history.replaceState({}, "", pagePath); } catch(e) {}
-
-  // 3) set canonical display + copy button
-  var canonEl = document.getElementById("canon");
-  if (canonEl) canonEl.textContent = canonical;
-
-  var copyBtn = document.getElementById("copy");
-  if (copyBtn) {
-    copyBtn.addEventListener("click", async function(){
-      try {
-        await navigator.clipboard.writeText(canonical);
-        copyBtn.textContent = "Copied";
-        setTimeout(function(){ copyBtn.textContent = "Copy page link"; }, 1200);
-      } catch(e) {
-        // fallback
-        prompt("Copy:", canonical);
-      }
-    });
-  }
-
-  // 4) build open.html link
-  var go = document.getElementById("go");
-  if (go) {
-    var href = openBase + (dst ? ("&link=" + encodeURIComponent(dst)) : "");
-    go.setAttribute("href", href);
-  }
-})();
+  location.replace(${JSON.stringify(landing)});
 </script>
 </body>
 </html>`;
 }
-
 
 async function generatePPagesAndOgImages(activeList, archiveList) {
   const outDirAbs = siteJoin(OUT_DIR);
