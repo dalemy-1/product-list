@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Product Picks</title>
 <meta name="description" content="Independent product picks. As an Amazon Associate, we earn from qualifying purchases.">
+<link rel="canonical" href="https://ama.omino.top/">
 
 <style>
   :root{
@@ -273,6 +274,18 @@
 </style>
 </head>
 <body>
+<script>
+(function () {
+  try {
+    var p = location.pathname || "/";
+    // Normalize root /index.html to /
+    if (p === "/index.html") {
+      history.replaceState({}, "", "/");
+    }
+  } catch (e) {}
+})();
+</script>
+
 
 <header>
   <h1 id="headerTitle">Product Picks</h1>
