@@ -283,6 +283,39 @@
 </head>
 <body>
 <script>
+
+  // ==================== CANONICAL URL CLEAN (remove ?dst / ?to) ====================
+  // Goal:
+  // 1) Direct-open /p/{market}/{asin}?dst=... should end up with address bar as /p/{market}/{asin}
+  // 2) Landing /?to=/p/{market}/{asin}&dst=... should also end up as /p/{market}/{asin}
+  // The dst value is preserved in sessionStorage for the product page to use.
+  (function canonicalClean() {
+    try {
+      var sp = new URLSearchParams(location.search || "");
+      var dst = (sp.get("dst") || "").trim();
+      var to = (sp.get("to") || "").trim();
+      // store dst for later use
+      if (dst) {
+        // keep a per-path key so different products won't overwrite each other
+        try { sessionStorage.setItem("dst:" + (to || location.pathname), dst); } catch(e){}
+        try { sessionStorage.setItem("dst:last", dst); } catch(e){}
+      }
+
+      // If we are on /?to=... => normalize to the "to" path (no query)
+      if (to && to.startsWith("/p/")) {
+        try { history.replaceState({}, "", to); } catch(e){}
+        return;
+      }
+
+      // If we are already on /p/... with ?dst=... => strip query
+      if ((location.pathname || "").startsWith("/p/") && (sp.has("dst") || sp.has("to"))) {
+        try { history.replaceState({}, "", location.pathname); } catch(e){}
+      }
+    } catch (e) {}
+  })();
+  // ==================== END CANONICAL URL CLEAN ====================
+
+
 (function () {
   try {
     var p = location.pathname || "/";
@@ -618,7 +651,17 @@ function getDstFromLocation(){
     return isAllDigits(s);
   }
 
-  function parseRoute(){
+  
+  function getDstForPath(pathname){
+    try{
+      var key = "dst:" + pathname;
+      var v = sessionStorage.getItem(key) || sessionStorage.getItem("dst:last") || "";
+      return (v || "").trim();
+    }catch(e){}
+    return "";
+  }
+
+function parseRoute(){
     const path = location.pathname || "/";
     let m = path.match(/^\/p\/([^\/]+)\/([^\/?#]+)(?:\/index\.html)?\/?$/i);
     if (m){
