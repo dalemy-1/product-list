@@ -2494,5 +2494,29 @@
     "ext": "jpg",
     "bytes": 71677,
     "at": 1768294531945
+  },
+  "DE|B0FS1QBCTT": {
+    "src": "https://m.media-amazon.com/images/I/81Hs7Dm+C2L._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 76338,
+    "at": 1768294826805
+  },
+  "DE|B0FXMCN466": {
+    "src": "https://m.media-amazon.com/images/I/61HOFWIjlBL._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 49488,
+    "at": 1768294826818
+  },
+  "FR|B0FS1RDGWZ": {
+    "src": "https://m.media-amazon.com/images/I/71cwKfhstmL._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 76532,
+    "at": 1768294826827
+  },
+  "UK|B0FPFMM9XY": {
+    "src": "https://m.media-amazon.com/images/I/61msAz9QRCL._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 36630,
+    "at": 1768294827732
   }
 }
