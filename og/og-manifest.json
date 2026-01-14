@@ -2620,5 +2620,17 @@
     "ext": "jpg",
     "bytes": 155596,
     "at": 1768380033660
+  },
+  "CA|B0CSDGH1C6": {
+    "src": "https://m.media-amazon.com/images/I/61-R19ZcvAL._SY500_.jpg",
+    "ext": "jpg",
+    "bytes": 50999,
+    "at": 1768384515570
+  },
+  "US|B0D2ML9LRL": {
+    "src": "https://m.media-amazon.com/images/I/61sE+vMQ+SL._AC_SL1200_.jpg",
+    "ext": "jpg",
+    "bytes": 110409,
+    "at": 1768384532050
   }
 }
