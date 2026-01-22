@@ -1563,5 +1563,110 @@ function parseRoute(){
     setInterval(() => fetchAllData(false), AUTO_REFRESH_MS);
   };
 </script>
+
+<script>
+/* AMA_CLICK_IMAGE_TO_AMAZON_V1 */
+(function () {
+  try {
+    // This site uses ?to=...&dst=... for product detail routing.
+    var params = new URLSearchParams(location.search || "");
+    var dst = params.get("dst");
+    if (!dst) return;
+
+    // Decode if needed (some pages may already be decoded)
+    try { dst = decodeURIComponent(dst); } catch (e) {}
+
+    // Open Amazon in new window (same behavior as button)
+    function goAmazon(ev) {
+      try {
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+      } catch (e) {}
+      window.open(dst, "_blank", "noopener,noreferrer");
+      return false;
+    }
+
+    // Helper: mark clickable
+    function makeClickable(el) {
+      if (!el) return;
+      el.style.cursor = "pointer";
+      // Capture phase to win over overlays/handlers
+      el.addEventListener("click", goAmazon, true);
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") goAmazon(e);
+      }, true);
+      if (!el.getAttribute("tabindex")) el.setAttribute("tabindex", "0");
+      el.setAttribute("role", "link");
+      el.setAttribute("aria-label", "View on Amazon");
+    }
+
+    // Strategy 1: bind to obvious product images once they exist
+    function bindNow() {
+      // Common candidates: main image in detail view
+      var candidates = [];
+      candidates = candidates.concat(Array.from(document.querySelectorAll(
+        'img[alt*="Product"], img[alt*="product"], img[data-role="product-image"], img.product-image, .detail img, .product-detail img'
+      )));
+      // Also bind to large image wrappers if present
+      candidates = candidates.concat(Array.from(document.querySelectorAll(
+        '.detail-image, .detail-image-wrap, .product-image-wrap, .hero-image, .main-image, [data-testid="product-image"]'
+      )));
+      var bound = 0;
+      candidates.forEach(function (el) {
+        if (el && !el.__amaClickBound) {
+          el.__amaClickBound = true;
+          makeClickable(el);
+          bound++;
+        }
+      });
+      return bound;
+    }
+
+    // Strategy 2: always allow clicking any image in the central detail card
+    // by event delegation (safe and resilient).
+    function delegate() {
+      if (document.__amaDelegated) return;
+      document.__amaDelegated = true;
+      document.addEventListener("click", function (e) {
+        var t = e.target;
+        if (!t) return;
+        // If clicked on an image inside the main content card, go.
+        if (t.tagName === "IMG") {
+          // Avoid hijacking footer/logo clicks
+          var inMain = t.closest && t.closest('main, .container, .content, .card, .panel, .page, body');
+          if (inMain) {
+            // If user clicked a real link already, don't override
+            var link = t.closest('a');
+            if (link && link.href) return;
+            goAmazon(e);
+          }
+        }
+      }, true);
+    }
+
+    // Initial bind after DOM ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () {
+        bindNow();
+        delegate();
+      });
+    } else {
+      bindNow();
+      delegate();
+    }
+
+    // Re-bind if SPA re-renders
+    var mo = new MutationObserver(function () {
+      bindNow();
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (err) {
+    // silent
+  }
+})();
+</script>
+
 </body>
 </html>
