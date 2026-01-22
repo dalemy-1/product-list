@@ -243,6 +243,35 @@
         This product reference may have been removed or moved.<br/>
         Please return to the list and search again.
       </div>`;
+/* CLICK_IMAGE_SAME_AS_VIEW_AMAZON_V1 */
+    // Make main product image clickable: same behavior as "View on Amazon"
+    try {
+      const imgEl = document.querySelector('#content img.img, #content img.detail-image, #content img, img.detail-image, img.img');
+      // Prefer the real anchor used by the View on Amazon button
+      const amazonA = document.querySelector('#content .actions a.btn[href], #content a.btn[href*="amzn"], #content a[href*="amzn.to"], #content a[href*="amazon."], a.btn[href*="amazon."], a.btn[href*="amzn.to"]');
+      if (imgEl) {
+        imgEl.style.cursor = 'pointer';
+        imgEl.setAttribute('role','link');
+        imgEl.setAttribute('tabindex','0');
+        imgEl.setAttribute('aria-label','View on Amazon');
+        const go = (e)=>{
+          try{ if(e){e.preventDefault();e.stopPropagation();} }catch(_e){}
+          if (amazonA && amazonA.href) {
+            window.open(amazonA.href, '_blank', 'noopener,noreferrer');
+          } else if (link) {
+            window.open(link, '_blank', 'noopener,noreferrer');
+          } else {
+            // fallback: try click the button if it exists
+            const btn = document.querySelector('#content .actions .btn');
+            if (btn) btn.click();
+          }
+          return false;
+        };
+        imgEl.addEventListener('click', go, true);
+        imgEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' ') go(e); }, true);
+      }
+    } catch (e) {}
+
   }
 
   function renderDetail(p, market, asin, isArchived){
