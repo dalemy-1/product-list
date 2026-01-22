@@ -37,8 +37,9 @@
       background:#fff;display:block;margin:0 auto;
     }
 
-    .imgLink{display:block;cursor:pointer;text-decoration:none}
-    .imgLink:focus-visible{outline:2px solid #111827;outline-offset:3px;border-radius:12px}
+    .imgLink{display:block;cursor:pointer;border-radius:16px;}
+    .imgLink:focus-visible{outline:3px solid rgba(59,130,246,.6);outline-offset:4px;}
+    .imgLink .img{display:block;width:100%;height:auto;}
 
     .why{
       max-width:520px;margin:10px auto 0;padding:10px 12px;background:var(--soft);border:1px solid var(--border);border-radius:12px;
@@ -269,12 +270,8 @@
     const viewAmazon = link
       ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">View on Amazon</a>`
       : `<button class="btn" onclick="alert('No valid Amazon link for this item.')">View on Amazon</button>`;
-
-    const imgHtml = link
-      ? `<a class="imgLink" href="${esc(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored" aria-label="View on Amazon">
-        ${imgHtml}
-        </a>`
-      : `<img class="img"
+    // Build clickable product image: same destination as "View on Amazon"
+    const baseImg = `<img class="img"
           src="${esc(imgSrc)}"
           data-original="${esc(normalizeUrl(imgRaw)||"")}"
           data-stage="0"
@@ -284,20 +281,14 @@
           referrerpolicy="no-referrer"
           onerror="onImgError(this)"
         />`;
+    const imgHtml = link
+      ? `<a class="imgLink" href="${esc(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored" aria-label="View on Amazon">${baseImg}</a>`
+      : baseImg;
 
 
     document.getElementById("content").innerHTML = `
       <div class="card">
-        <img class="img"
-          src="${esc(imgSrc)}"
-          data-original="${esc(normalizeUrl(imgRaw)||"")}"
-          data-stage="0"
-          alt="${esc(asin)}"
-          loading="lazy"
-          decoding="async"
-          referrerpolicy="no-referrer"
-          onerror="onImgError(this)"
-        />
+        ${imgHtml}
         <div class="why">
           <strong>${esc(why.h)}</strong><br/>
           ${esc(why.o)}<br/>
