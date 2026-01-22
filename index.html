@@ -296,9 +296,6 @@
   .fold-btn:hover{ background:#f9fafb; }
   .fold-hidden{ display:none !important; }
 
-
-  .detail-image-link{display:block;cursor:pointer;}
-  .detail-image-link:focus{outline:2px solid #111827; outline-offset:4px; border-radius:14px;}
 </style>
 </head>
 <body>
@@ -1316,15 +1313,7 @@ function parseRoute(){
     const keywordText = String(p.keyword || "").trim();
     const storeText = String(p.store || "").trim();
 
-    
-    const detailImgTag = `
-          ${imageBlock}`;
-
-    const imageBlock = link
-      ? `<a class="detail-image-link" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer nofollow sponsored">${detailImgTag}</a>`
-      : detailImgTag;
-
-const box = document.getElementById("detailPage");
+    const box = document.getElementById("detailPage");
     box.innerHTML = `
       <div class="detail-wrap">
         <div class="detail-top">
