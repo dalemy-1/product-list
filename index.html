@@ -1361,6 +1361,35 @@ function parseRoute(){
         </div>
       </div>
     `;
+
+    // Make product image clickable (same behavior as "View on Amazon")
+    try{
+      const imgEl = box.querySelector(".detail-image");
+      if (imgEl){
+        if (link){
+          imgEl.style.cursor = "pointer";
+          imgEl.setAttribute("role", "link");
+          imgEl.setAttribute("tabindex", "0");
+          const openAmazon = (e) => {
+            // user gesture → allowed popup
+            window.open(link, "_blank", "noopener,noreferrer");
+          };
+          imgEl.onclick = openAmazon;
+          imgEl.onkeydown = (e) => {
+            if (e.key === "Enter" || e.key === " "){
+              e.preventDefault();
+              openAmazon(e);
+            }
+          };
+        }else{
+          imgEl.style.cursor = "default";
+          imgEl.removeAttribute("role");
+          imgEl.removeAttribute("tabindex");
+          imgEl.onclick = null;
+          imgEl.onkeydown = null;
+        }
+      }
+    }catch(_e){}
   }
 
   function renderByRoute(){
