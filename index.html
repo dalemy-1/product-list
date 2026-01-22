@@ -1668,5 +1668,102 @@ function parseRoute(){
 })();
 </script>
 
+<script>
+/* CLICK_IMAGE_TO_AMAZON_OVERLAY_V1 */
+(function () {
+  try {
+    var sp = new URLSearchParams(location.search || "");
+    var dst = sp.get("dst");
+    if (!dst) return;
+
+    try { dst = decodeURIComponent(dst); } catch (e) {}
+
+    function ensureOverlay() {
+      var candidates = [];
+
+      candidates = candidates.concat([].slice.call(document.querySelectorAll(
+        'main img, .detail img, .product img, img'
+      )));
+
+      candidates = candidates.concat([].slice.call(document.querySelectorAll(
+        'main [style*="background-image"], .detail [style*="background-image"], .product [style*="background-image"], [style*="background-image"]'
+      )));
+
+      candidates = candidates.filter(function (el) {
+        if (!el || !el.getBoundingClientRect) return false;
+        var r = el.getBoundingClientRect();
+        return r.width >= 220 && r.height >= 220;
+      });
+
+      if (!candidates.length) return;
+
+      candidates.sort(function (a, b) {
+        var ra = a.getBoundingClientRect();
+        var rb = b.getBoundingClientRect();
+        return (rb.width * rb.height) - (ra.width * ra.height);
+      });
+      var hero = candidates[0];
+      if (!hero) return;
+
+      var host = hero.closest('.card, .panel, .container, .content, main, body') || hero.parentElement;
+      if (!host) return;
+
+      if (host.querySelector('a.__amazon_overlay_link')) return;
+
+      var cs = window.getComputedStyle(host);
+      if (cs.position === "static") host.style.position = "relative";
+
+      var rh = hero.getBoundingClientRect();
+      var rhost = host.getBoundingClientRect();
+
+      var a = document.createElement("a");
+      a.className = "__amazon_overlay_link";
+      a.href = dst;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer nofollow sponsored";
+      a.setAttribute("aria-label", "View on Amazon");
+      a.style.position = "absolute";
+      a.style.left = (rh.left - rhost.left) + "px";
+      a.style.top = (rh.top - rhost.top) + "px";
+      a.style.width = rh.width + "px";
+      a.style.height = rh.height + "px";
+      a.style.zIndex = "9999";
+      a.style.display = "block";
+      a.style.cursor = "pointer";
+      a.style.background = "transparent";
+      a.style.pointerEvents = "auto";
+
+      host.appendChild(a);
+
+      try {
+        hero.style.cursor = "pointer";
+        hero.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(dst, "_blank", "noopener,noreferrer");
+        }, true);
+      } catch (e) {}
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", ensureOverlay);
+    } else {
+      ensureOverlay();
+    }
+
+    var mo = new MutationObserver(function () {
+      clearTimeout(window.__amaOverlayT);
+      window.__amaOverlayT = setTimeout(ensureOverlay, 60);
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+
+    window.addEventListener("resize", function () {
+      var old = document.querySelector('a.__amazon_overlay_link');
+      if (old && old.parentElement) old.parentElement.removeChild(old);
+      ensureOverlay();
+    });
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
