@@ -3184,5 +3184,17 @@
     "ext": "jpg",
     "bytes": 59859,
     "at": 1769433623767
+  },
+  "CA|B0FT8W31MD": {
+    "src": "https://m.media-amazon.com/images/I/71pW+qHtCUL._AC_SY606_.jpg",
+    "ext": "jpg",
+    "bytes": 23335,
+    "at": 1769442321570
+  },
+  "US|B0FT8W31MD": {
+    "src": "https://m.media-amazon.com/images/I/71pW+qHtCUL._AC_SY741_.jpg",
+    "ext": "jpg",
+    "bytes": 30205,
+    "at": 1769442344526
   }
 }
