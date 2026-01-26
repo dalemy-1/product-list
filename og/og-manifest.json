@@ -3154,5 +3154,23 @@
     "ext": "jpg",
     "bytes": 16508,
     "at": 1769422538637
+  },
+  "DE|B0G2LH3CC7": {
+    "src": "https://m.media-amazon.com/images/I/61uxfc7TD7L._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 42127,
+    "at": 1769425519738
+  },
+  "ES|B0GDFBGJC3": {
+    "src": "https://m.media-amazon.com/images/I/41uyuVECs-L._AC_SX466_.jpg",
+    "ext": "jpg",
+    "bytes": 18390,
+    "at": 1769425520736
+  },
+  "FR|B0FX2PRHT7": {
+    "src": "https://m.media-amazon.com/images/I/612ufKlhkWL._AC_SY355_.jpg",
+    "ext": "jpg",
+    "bytes": 14457,
+    "at": 1769425522647
   }
 }
