@@ -984,10 +984,10 @@
     "at": 1767102034702
   },
   "US|B0D91BMWZK": {
-    "src": "https://m.media-amazon.com/images/I/71h7u0KsysL._AC_SX679_.jpg",
+    "src": "https://m.media-amazon.com/images/I/71h7u0KsysL._AC_SL1500_.jpg",
     "ext": "jpg",
-    "bytes": 54606,
-    "at": 1767337232904
+    "bytes": 146232,
+    "at": 1769591441940
   },
   "US|B0DD6C46DB": {
     "src": "https://m.media-amazon.com/images/I/81bSsWi96wL._AC_SY450_.jpg",
@@ -3346,5 +3346,11 @@
     "ext": "jpg",
     "bytes": 179427,
     "at": 1769587540718
+  },
+  "DE|B0DL5CRFT3": {
+    "src": "https://m.media-amazon.com/images/I/71avGpthKlL._AC_SX679_.jpg",
+    "ext": "jpg",
+    "bytes": 48759,
+    "at": 1769591421005
   }
 }
