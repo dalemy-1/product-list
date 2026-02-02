@@ -1,9 +1,12 @@
 name: Sync products.json + archive.json and generate /p pages
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
-  workflow_dispatch:
+    paths:
+      - "products.json"
+      - "archive.json"
   # 如需定时，取消注释即可
   # schedule:
   #   - cron: "*/5 * * * *"
@@ -54,7 +57,7 @@ jobs:
           fi
 
           git add -A
-          git commit -m "chore: sync products + generate pages" || true
+          git commit -m "chore: sync products + generate pages [skip ci]" || true
 
           # 推送重试：降低偶发冲突/网络波动导致的失败
           for i in 1 2 3 4 5; do
