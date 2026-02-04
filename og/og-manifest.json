@@ -3676,5 +3676,17 @@
     "ext": "jpg",
     "bytes": 21821,
     "at": 1770217235860
+  },
+  "DE|B0G6WVXJTZ": {
+    "src": "https://m.media-amazon.com/images/I/71JWVB668xL._AC_SX425_PIbundle-28,TopRight,0,0_SH20_.jpg",
+    "ext": "jpg",
+    "bytes": 28845,
+    "at": 1770243321727
+  },
+  "DE|B0GDTH5T2N": {
+    "src": "https://m.media-amazon.com/images/I/713Gp5r6XZL._AC_SY300_SX300_QL70_ML2_.jpg",
+    "ext": "jpg",
+    "bytes": 15557,
+    "at": 1770243322620
   }
 }
