@@ -35,7 +35,7 @@ jobs:
 
       - name: Sync from CSV -> products.json + archive.json + /p pages
         env:
-          CSV_URL: "http://154.48.226.95:5001/admin/Product/export_csv"
+          CSV_URL: "http://154.48.226.28:801/8ce7d1f0-8aa0-4da7-afe2-84653fbe52ea"
           SITE_ORIGIN: "https://ama.omino.top"
           OUT_DIR: "p"
         run: |
