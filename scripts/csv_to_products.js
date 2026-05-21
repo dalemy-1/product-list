@@ -2,7 +2,7 @@ import fs from "fs";
 import fetch from "node-fetch";
 import { parse } from "csv-parse/sync";
 
-const CSV_URL = "http://154.48.226.28:801/8ce7d1f0-8aa0-4da7-afe2-84653fbe52ea";
+const CSV_URL = "http://154.48.226.28:5001/admin/Product/export_csv";
 const OUTPUT = "products.json";
 
 async function main() {
