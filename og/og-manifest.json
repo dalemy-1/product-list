@@ -8452,5 +8452,17 @@
     "ext": "jpg",
     "bytes": 43697,
     "at": 1779324561634
+  },
+  "US|B0GWQ816Q7": {
+    "src": "https://m.media-amazon.com/images/I/61khWhGHwtL._AC_SL1500_.jpg",
+    "ext": "jpg",
+    "bytes": 115585,
+    "at": 1779333383483
+  },
+  "US|B0GWQT5B8B": {
+    "src": "https://m.media-amazon.com/images/I/61ebLT3AmHL._AC_SL1500_.jpg",
+    "ext": "jpg",
+    "bytes": 79852,
+    "at": 1779333383504
   }
 }
