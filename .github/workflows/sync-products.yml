@@ -21,6 +21,8 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # 全局任务超时，防止整流程卡死
+    timeout-minutes: 10
     steps:
       - name: Checkout (main)
         uses: actions/checkout@v4
@@ -38,10 +40,16 @@ jobs:
           CSV_URL: "http://154.48.226.28:5001/admin/Product/export_csv"
           SITE_ORIGIN: "https://ama.omino.top"
           OUT_DIR: "p"
+          # 传递配置给 JS 脚本（后续JS用）
+          OG_REQUEST_TIMEOUT: "8000"   # 单图片请求超时 8s
+          OG_MAX_CONCURRENCY: "10"     # 图片最大并发数
         run: |
           set -euo pipefail
           echo "[workflow] CSV_URL=$CSV_URL"
-          node scripts/sync_products.mjs
+          echo "[workflow] Start sync at $(date)"
+          # 使用 timeout 命令强制限制 node 进程执行时长，防止卡死
+          timeout 300 node scripts/sync_products.mjs
+          echo "[workflow] Sync finished at $(date)"
 
       - name: Commit changes (only if changed) + push (with retry)
         run: |
@@ -60,7 +68,7 @@ jobs:
           git commit -m "chore: sync products + generate pages [skip ci]" || true
 
           # 推送重试：降低偶发冲突/网络波动导致的失败
-          for i in 1 2 3 4 5; do
+          for i in {1..5}; do
             echo "Push attempt $i..."
             git pull --rebase origin main || true
             if git push origin HEAD:main; then
