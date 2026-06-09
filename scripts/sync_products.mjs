@@ -55,6 +55,35 @@ const OG_DIR = "og";
 const OG_PLACEHOLDER_PATH = "og-placeholder.jpg"; // file should exist at site root
 const OG_PLACEHOLDER_URL = `${SITE_ORIGIN}/${OG_PLACEHOLDER_PATH}`;
 
+// ================== OG 失败黑名单配置 ==================
+const FAILED_OG_CACHE = path.join(ROOT, "og_failed.json");
+let failedOgSet = new Set();
+
+// 加载失败黑名单
+function loadFailedOgList() {
+  try {
+    if (fs.existsSync(FAILED_OG_CACHE)) {
+      const list = JSON.parse(fs.readFileSync(FAILED_OG_CACHE, "utf8"));
+      list.forEach(item => failedOgSet.add(item));
+      console.log(`[cache] Loaded ${failedOgSet.size} permanently failed OG items`);
+    }
+  } catch (err) {
+    failedOgSet = new Set();
+    console.log(`[cache] og_failed.json invalid, reset empty`);
+  }
+}
+
+// 保存失败黑名单
+function saveFailedOgList() {
+  try {
+    const list = Array.from(failedOgSet);
+    fs.writeFileSync(FAILED_OG_CACHE, JSON.stringify(list, null, 2), "utf8");
+  } catch (err) {
+    console.warn("[warn] Save og_failed.json failed:", err.message);
+  }
+}
+// ==========================================================
+
 // ================== HELPERS ==================
 function norm(s) { return String(s ?? "").trim(); }
 function upper(s) { return norm(s).toUpperCase(); }
@@ -206,7 +235,7 @@ function guessExtFromContentType(ct) {
   return "";
 }
 
-async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+async function fetchWithTimeout(url, opts = {}, timeoutMs = 5000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -240,7 +269,7 @@ async function downloadOgImage(imageUrl, outAbsNoExt) {
   };
 
   const tryOnce = async () => {
-    const res = await fetchWithTimeout(url, { redirect: "follow", headers }, 8000);
+    const res = await fetchWithTimeout(url, { redirect: "follow", headers }, 5000);
     if (!res || !res.ok) return null;
 
     const ct = res.headers.get("content-type") || "";
@@ -390,6 +419,22 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     const market = upper(p.market);
     const asin = upper(p.asin);
     const img = norm(p.image_url);
+    const failKey = `${market}/${asin}`;
+
+    // 命中黑名单 → 直接使用占位图，跳过下载
+    if (failedOgSet.has(failKey)) {
+      console.log(`[og] fail ${failKey} -> placeholder (cached, skip download)`);
+      const dir = path.join(outTmpAbs, market.toLowerCase(), asin);
+      ensureDir(dir);
+      const html = buildPreviewHtml({
+        market, asin,
+        ogImageUrl: OG_PLACEHOLDER_URL,
+        dstUrl: p.link || ""
+      });
+      fs.writeFileSync(path.join(dir, "index.html"), html, "utf-8");
+      pageCount++;
+      continue;
+    }
 
     // 1) OG image download -> /og/{market}/{asin}.jpg|png (incremental)
     // 规则：
@@ -413,7 +458,6 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     if (canReuse) {
       ogImageUrl = ogUrlFor(market, asin, existing.ext);
       ogOk++;
-      // console.log(`[og] reuse ${market}/${asin}.${existing.ext}`);
     } else if (img) {
       // 需要下载或刷新
       try {
@@ -438,6 +482,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
           } else {
             ogFail++;
             console.log(`[og] fail ${market}/${asin} -> placeholder`);
+            failedOgSet.add(failKey);
           }
         }
       } catch {
@@ -448,6 +493,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
         } else {
           ogFail++;
           console.log(`[og] error ${market}/${asin} -> placeholder`);
+          failedOgSet.add(failKey);
         }
       }
     } else {
@@ -459,6 +505,7 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
       } else {
         ogFail++;
         console.log(`[og] no image_url ${market}/${asin} -> placeholder`);
+        failedOgSet.add(failKey);
       }
     }
 
@@ -470,14 +517,14 @@ async function generatePPagesAndOgImages(activeList, archiveList) {
     pageCount++;
   }
 
-// 3) 原子替换：用临时目录覆盖正式 /p 目录
-try {
-  if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
-  fs.renameSync(outTmpAbs, outDirAbs);
-} catch (e) {
-  // 如果替换失败，至少不要把旧 /p 删除掉（上面已删），这里兜底为：保留 tmp 目录，便于排查
-  console.warn("[warn] swap /p__tmp -> /p failed:", e?.message || e);
-}
+  // 3) 原子替换：用临时目录覆盖正式 /p 目录
+  try {
+    if (fs.existsSync(outDirAbs)) fs.rmSync(outDirAbs, { recursive: true, force: true });
+    fs.renameSync(outTmpAbs, outDirAbs);
+  } catch (e) {
+    // 如果替换失败，至少不要把旧 /p 删除掉（上面已删），这里兜底为：保留 tmp 目录，便于排查
+    console.warn("[warn] swap /p__tmp -> /p failed:", e?.message || e);
+  }
 
   console.log(`[p] generated ${pageCount} pages under ${SITE_DIR ? SITE_DIR + "/" : ""}${OUT_DIR}`);
   console.log(`[og] downloaded ok=${ogOk}, failed=${ogFail} (fallback to og-placeholder.jpg)`);
@@ -488,10 +535,17 @@ try {
   } catch (e) {
     console.warn("[warn] write og-manifest.json failed:", e?.message || e);
   }
+
+  // 保存 OG 失败黑名单
+  saveFailedOgList();
+  console.log(`[cache] Saved ${failedOgSet.size} permanent failed items to og_failed.json`);
 }
 
 // ================== MAIN ==================
 (async () => {
+  // 加载OG失败黑名单
+  loadFailedOgList();
+
   console.log("[sync] CSV_URL =", CSV_URL);
   console.log("[sync] SITE_DIR =", SITE_DIR || "(repo root)");
   console.log("[sync] write products to =", PRODUCTS_PATH);
