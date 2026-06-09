@@ -7,7 +7,7 @@ on:
     paths:
       - "products.json"
       - "archive.json"
-      - "og_failed.json"
+      - "og_failed.json"  # 监听黑名单文件变更
   # schedule:
   #   - cron: "*/5 * * * *"
 
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # 延长到15分钟兜底
+    timeout-minutes: 15 # 全局15分钟兜底
     steps:
       - name: Checkout (main)
         uses: actions/checkout@v4
@@ -39,8 +39,6 @@ jobs:
           CSV_URL: "http://154.48.226.28:5001/admin/Product/export_csv"
           SITE_ORIGIN: "https://ama.omino.top"
           OUT_DIR: "p"
-          OG_REQUEST_TIMEOUT: "5000"   # 单图超时5秒
-          OG_MAX_CONCURRENCY: "20"     # 并发20个请求
         run: |
           set -euo pipefail
           echo "[workflow] CSV_URL=$CSV_URL"
