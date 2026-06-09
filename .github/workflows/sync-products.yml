@@ -1,143 +1,75 @@
-import fs from "fs"
-import path from "path"
-import crypto from "crypto"
-import { fileURLToPath } from "url"
+name: Sync products.json + archive.json and generate /p pages
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "products.json"
+      - "archive.json"
+  # 如需定时，取消注释即可
+  # schedule:
+  #   - cron: "*/5 * * * *"
 
-const ROOT = path.resolve(__dirname, "..")
+permissions:
+  contents: write
 
-const PRODUCTS_JSON = path.join(ROOT, "products.json")
-const ARCHIVE_JSON = path.join(ROOT, "archive.json")
-const OUT_DIR = path.join(ROOT, process.env.OUT_DIR || "p")
-const HASH_FILE = path.join(ROOT, ".sync_hash")
+concurrency:
+  group: sync-products
+  cancel-in-progress: true
 
-const CSV_URL = process.env.CSV_URL
-const SITE_ORIGIN = process.env.SITE_ORIGIN || ""
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (main)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
 
-function sha256(text) {
-  return crypto.createHash("sha256").update(text).digest("hex")
-}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-async function fetchText(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("CSV fetch failed")
-  return await res.text()
-}
+      - name: Sync from CSV -> products.json + archive.json + /p pages
+        env:
+          CSV_URL: "http://154.48.226.28:5001/admin/Product/export_csv"
+          SITE_ORIGIN: "https://ama.omino.top"
+          OUT_DIR: "p"
+        run: |
+          set -euo pipefail
+          echo "[workflow] CSV_URL=$CSV_URL"
+          node scripts/sync_products.mjs
 
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-}
+      - name: Commit changes (only if changed) + push (with retry)
+        run: |
+          set -euo pipefail
 
-function parseCSV(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(Boolean)
-  const headers = lines[0].split(",").map(s => s.trim())
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-  return lines.slice(1).map(line => {
-    const cols = line.split(",")
-    const obj = {}
-    headers.forEach((h, i) => obj[h] = (cols[i] || "").trim())
-    return obj
-  })
-}
+          # 没有变更就退出
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes"
+            exit 0
+          fi
 
-/**
- * 🚨 MOCK OG函数（替换你真实OG逻辑）
- * 如果你有真实OG API，就放这里
- */
-async function generateOG(asin) {
-  // 模拟：真实环境这里是 API 请求
-  // 这里统一兜底，不阻塞
-  return `https://placeholder.image/${asin}`
-}
+          git add -A
+          git commit -m "chore: sync products + generate pages [skip ci]" || true
 
-/**
- * ⭐ 核心优化：失败立即返回，不阻塞
- */
-async function safeOG(asin) {
-  try {
-    return await generateOG(asin)
-  } catch (e) {
-    return "placeholder"
-  }
-}
+          # 推送重试：降低偶发冲突/网络波动导致的失败
+          for i in 1 2 3 4 5; do
+            echo "Push attempt $i..."
+            git pull --rebase origin main || true
+            if git push origin HEAD:main; then
+              echo "Push success."
+              exit 0
+            fi
+            echo "Push failed, retry in 3s..."
+            sleep 3
+          done
 
-async function main() {
-  console.log("[sync] start")
-
-  if (!CSV_URL) throw new Error("CSV_URL missing")
-
-  const csvText = await fetchText(CSV_URL)
-
-  const hash = sha256(csvText)
-
-  if (fs.existsSync(HASH_FILE)) {
-    const last = fs.readFileSync(HASH_FILE, "utf8").trim()
-    if (last === hash) {
-      console.log("[sync] no change, exit fast")
-      process.exit(0)
-    }
-  }
-
-  const records = parseCSV(csvText)
-
-  console.log("[sync] records:", records.length)
-
-  /**
-   * 🚀 关键优化点：OG 并发，不再串行
-   */
-  const products = await Promise.all(
-    records.map(async (r, i) => {
-      const asin = r.asin || ""
-
-      const og = await safeOG(asin)
-
-      return {
-        id: r.id || String(i + 1),
-        title: r.title || r.name || "",
-        asin,
-        price: r.price || "",
-        og, // 👈 已优化：不会卡
-        updatedAt: new Date().toISOString()
-      }
-    })
-  )
-
-  console.log("[sync] og done")
-
-  fs.writeFileSync(PRODUCTS_JSON, JSON.stringify(products, null, 2))
-  fs.writeFileSync(ARCHIVE_JSON, JSON.stringify(products, null, 2))
-
-  ensureDir(OUT_DIR)
-
-  /**
-   * 🚀 页面生成（同步，但已经不慢了）
-   */
-  for (const p of products) {
-    const html = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${p.title}</title>
-</head>
-<body>
-<h1>${p.title}</h1>
-<p>ASIN: ${p.asin}</p>
-<p>Price: ${p.price}</p>
-<img src="${p.og}" />
-</body>
-</html>`
-
-    fs.writeFileSync(path.join(OUT_DIR, `${p.id}.html`), html)
-  }
-
-  fs.writeFileSync(HASH_FILE, hash)
-
-  console.log("[sync] done")
-}
-
-main().catch(e => {
-  console.error(e)
-  process.exit(1)
-})
+          echo "Push failed after retries."
+          exit 1
