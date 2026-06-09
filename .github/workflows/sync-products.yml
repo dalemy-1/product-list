@@ -1,75 +1,119 @@
-name: Sync products.json + archive.json and generate /p pages
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-on:
-  workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - "products.json"
-      - "archive.json"
-  # 如需定时，取消注释即可
-  # schedule:
-  #   - cron: "*/5 * * * *"
+import {
+  fetchCsv,
+  parseCsv,
+  generateOgImage,
+  generateProductPage
+} from './lib.js'   // ← 保持你原来的 import，不要乱改
 
-permissions:
-  contents: write
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-concurrency:
-  group: sync-products
-  cancel-in-progress: true
+const SITE_DIR = process.cwd()
+const PRODUCTS_JSON_PATH = path.join(SITE_DIR, 'products.json')
+const ARCHIVE_JSON_PATH = path.join(SITE_DIR, 'archive.json')
+const PAGES_DIR = path.join(SITE_DIR, 'p')
 
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (main)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
+// ==============================
+// 1. 读取旧 products.json（用于 diff）
+// ==============================
+const oldProductsMap = new Map()
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+if (fs.existsSync(PRODUCTS_JSON_PATH)) {
+  try {
+    const oldProducts = JSON.parse(
+      fs.readFileSync(PRODUCTS_JSON_PATH, 'utf-8')
+    )
+    for (const p of oldProducts) {
+      if (p.asin) {
+        oldProductsMap.set(p.asin, true)
+      }
+    }
+    console.log(`[diff] loaded ${oldProductsMap.size} existing products`)
+  } catch (e) {
+    console.warn('[diff] failed to read old products.json, treat all as new')
+  }
+} else {
+  console.log('[diff] no existing products.json, first run')
+}
 
-      - name: Sync from CSV -> products.json + archive.json + /p pages
-        env:
-          CSV_URL: "http://154.48.226.28:5001/admin/Product/export_csv"
-          SITE_ORIGIN: "https://ama.omino.top"
-          OUT_DIR: "p"
-        run: |
-          set -euo pipefail
-          echo "[workflow] CSV_URL=$CSV_URL"
-          node scripts/sync_products.mjs
+// ==============================
+// 2. 拉取 CSV 并生成 products
+// ==============================
+console.log('[sync] fetching csv...')
+const csvText = await fetchCsv()
+console.log(`[sync] csv bytes = ${csvText.length}`)
 
-      - name: Commit changes (only if changed) + push (with retry)
-        run: |
-          set -euo pipefail
+const products = parseCsv(csvText)
+console.log(`[sync] parsed products = ${products.length}`)
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+// ==============================
+// 3. 写入新的 products.json / archive.json
+// ==============================
+fs.writeFileSync(
+  PRODUCTS_JSON_PATH,
+  JSON.stringify(products, null, 2)
+)
+console.log(`[sync] wrote products.json (${products.length})`)
 
-          # 没有变更就退出
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes"
-            exit 0
-          fi
+let archive = []
+if (fs.existsSync(ARCHIVE_JSON_PATH)) {
+  try {
+    archive = JSON.parse(fs.readFileSync(ARCHIVE_JSON_PATH, 'utf-8'))
+  } catch {}
+}
 
-          git add -A
-          git commit -m "chore: sync products + generate pages [skip ci]" || true
+const archiveMap = new Map(archive.map(p => [p.asin, p]))
+for (const p of products) {
+  archiveMap.set(p.asin, p)
+}
 
-          # 推送重试：降低偶发冲突/网络波动导致的失败
-          for i in 1 2 3 4 5; do
-            echo "Push attempt $i..."
-            git pull --rebase origin main || true
-            if git push origin HEAD:main; then
-              echo "Push success."
-              exit 0
-            fi
-            echo "Push failed, retry in 3s..."
-            sleep 3
-          done
+archive = Array.from(archiveMap.values())
 
-          echo "Push failed after retries."
-          exit 1
+fs.writeFileSync(
+  ARCHIVE_JSON_PATH,
+  JSON.stringify(archive, null, 2)
+)
+console.log(`[sync] wrote archive.json (${archive.length})`)
+
+// ==============================
+// 4. 只对“新增产品”生成 OG / 页面
+// ==============================
+if (!fs.existsSync(PAGES_DIR)) {
+  fs.mkdirSync(PAGES_DIR, { recursive: true })
+}
+
+let newCount = 0
+let skipCount = 0
+
+for (const product of products) {
+  const asin = product.asin
+
+  if (!asin) continue
+
+  const isNew = !oldProductsMap.has(asin)
+
+  if (!isNew) {
+    console.log(`[skip] ${asin} already exists`)
+    skipCount++
+    continue
+  }
+
+  console.log(`[new] ${asin} generate OG / page`)
+  newCount++
+
+  try {
+    await generateOgImage(product)
+    await generateProductPage(product)
+  } catch (err) {
+    console.error(`[error] ${asin}`, err.message)
+  }
+}
+
+console.log('==============================')
+console.log(`[result] new products  : ${newCount}`)
+console.log(`[result] skipped       : ${skipCount}`)
+console.log('==============================')
