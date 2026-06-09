@@ -1,75 +1,142 @@
-name: Sync products.json + archive.json and generate /p pages
+#!/usr/bin/env node
+/**
+ * sync_products.mjs
+ * - CSV unchanged => exit immediately
+ * - CSV changed   => regenerate products.json, archive.json, /p pages
+ */
 
-on:
-  workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - "products.json"
-      - "archive.json"
-  # 如需定时，取消注释即可
-  # schedule:
-  #   - cron: "*/5 * * * *"
+import fs from "fs"
+import path from "path"
+import crypto from "crypto"
+import { fileURLToPath } from "url"
 
-permissions:
-  contents: write
+// -------------------- 基础路径 --------------------
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const ROOT = path.resolve(__dirname, "..")
 
-concurrency:
-  group: sync-products
-  cancel-in-progress: true
+const PRODUCTS_JSON = path.join(ROOT, "products.json")
+const ARCHIVE_JSON  = path.join(ROOT, "archive.json")
+const OUT_DIR       = path.join(ROOT, process.env.OUT_DIR || "p")
+const HASH_FILE     = path.join(ROOT, ".sync_hash")
 
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (main)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
+const CSV_URL     = process.env.CSV_URL
+const SITE_ORIGIN = process.env.SITE_ORIGIN || ""
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+// -------------------- 工具函数 --------------------
+function sha256(text) {
+  return crypto.createHash("sha256").update(text).digest("hex")
+}
 
-      - name: Sync from CSV -> products.json + archive.json + /p pages
-        env:
-          CSV_URL: "http://154.48.226.28:5001/admin/Product/export_csv"
-          SITE_ORIGIN: "https://ama.omino.top"
-          OUT_DIR: "p"
-        run: |
-          set -euo pipefail
-          echo "[workflow] CSV_URL=$CSV_URL"
-          node scripts/sync_products.mjs
+async function fetchText(url) {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
+  }
+  return await res.text()
+}
 
-      - name: Commit changes (only if changed) + push (with retry)
-        run: |
-          set -euo pipefail
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+}
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+// 极简 CSV 解析（够用、稳定）
+function parseCSV(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(Boolean)
+  if (lines.length === 0) return []
 
-          # 没有变更就退出
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes"
-            exit 0
-          fi
+  const headers = lines[0].split(",").map(h => h.trim())
+  const rows = []
 
-          git add -A
-          git commit -m "chore: sync products + generate pages [skip ci]" || true
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",")
+    const obj = {}
+    headers.forEach((h, idx) => {
+      obj[h] = (cols[idx] || "").trim()
+    })
+    rows.push(obj)
+  }
+  return rows
+}
 
-          # 推送重试：降低偶发冲突/网络波动导致的失败
-          for i in 1 2 3 4 5; do
-            echo "Push attempt $i..."
-            git pull --rebase origin main || true
-            if git push origin HEAD:main; then
-              echo "Push success."
-              exit 0
-            fi
-            echo "Push failed, retry in 3s..."
-            sleep 3
-          done
+// -------------------- 主流程 --------------------
+async function main() {
+  console.log("[sync] start")
 
-          echo "Push failed after retries."
-          exit 1
+  if (!CSV_URL) {
+    throw new Error("CSV_URL is not defined")
+  }
+
+  // 1️⃣ 拉 CSV
+  console.log("[sync] fetching CSV...")
+  const csvText = await fetchText(CSV_URL)
+
+  // 2️⃣ 计算 hash，判断是否变化
+  const currentHash = sha256(csvText)
+
+  if (fs.existsSync(HASH_FILE)) {
+    const lastHash = fs.readFileSync(HASH_FILE, "utf8").trim()
+    if (lastHash === currentHash) {
+      console.log("[sync] CSV unchanged, skip all heavy work.")
+      process.exit(0)
+    }
+  }
+
+  console.log("[sync] CSV changed, continue processing...")
+
+  // 3️⃣ 解析 CSV
+  const records = parseCSV(csvText)
+  console.log(`[sync] records: ${records.length}`)
+
+  // 4️⃣ 生成 products.json（示例结构）
+  const products = records.map((r, idx) => ({
+    id: r.id || String(idx + 1),
+    title: r.title || r.name || "",
+    price: r.price || "",
+    asin: r.asin || "",
+    updatedAt: new Date().toISOString()
+  }))
+
+  fs.writeFileSync(PRODUCTS_JSON, JSON.stringify(products, null, 2))
+  console.log("[sync] products.json written")
+
+  // 5️⃣ 生成 archive.json（示例：简单镜像）
+  fs.writeFileSync(ARCHIVE_JSON, JSON.stringify(products, null, 2))
+  console.log("[sync] archive.json written")
+
+  // 6️⃣ 生成 /p 页面
+  ensureDir(OUT_DIR)
+
+  for (const p of products) {
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${p.title}</title>
+  <link rel="canonical" href="${SITE_ORIGIN}/p/${p.id}" />
+</head>
+<body>
+  <h1>${p.title}</h1>
+  <p>ASIN: ${p.asin}</p>
+  <p>Price: ${p.price}</p>
+</body>
+</html>
+`
+    fs.writeFileSync(path.join(OUT_DIR, `${p.id}.html`), html)
+  }
+
+  console.log(`[sync] ${products.length} pages generated`)
+
+  // 7️⃣ 写入 hash（关键）
+  fs.writeFileSync(HASH_FILE, currentHash)
+  console.log("[sync] hash updated")
+
+  console.log("[sync] done")
+}
+
+main().catch(err => {
+  console.error("[sync] failed:", err)
+  process.exit(1)
+})
