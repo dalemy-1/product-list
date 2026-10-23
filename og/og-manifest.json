@@ -6270,10 +6270,10 @@
     "at": 1774751442179
   },
   "CA|B0FQ418QVS": {
-    "src": "https://m.media-amazon.com/images/I/71lAkguIlhL._AC_SY741_.jpg",
+    "src": "https://m.media-amazon.com/images/I/71lAkguIlhL._AC_SY606_.jpg",
     "ext": "jpg",
-    "bytes": 36279,
-    "at": 1785450662836
+    "bytes": 25560,
+    "at": 1792763167970
   },
   "CA|B0G2B6S3LZ": {
     "src": "https://m.media-amazon.com/images/I/61nLRFYoqlL._AC_SY606_.jpg",
@@ -13774,5 +13774,11 @@
     "ext": "jpg",
     "bytes": 153047,
     "at": 1792761366370
+  },
+  "DE|B0H6SF3MM7": {
+    "src": "https://m.media-amazon.com/images/I/61ZcmZG8YmL._AC_SL1500_.jpg",
+    "ext": "jpg",
+    "bytes": 121193,
+    "at": 1792763168058
   }
 }
